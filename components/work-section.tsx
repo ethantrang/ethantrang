@@ -42,7 +42,7 @@ const workExperience = [
     role: "AI Intern",
     logo: "/vngcorp.jpeg",
     description:
-      "My first tech role having never taken a formal computer science class.<br><br>I spend a lot of weeks understanding the codebase and picked up on standard skills to contribute to the team.<br><br>By the end of my internship, I had successfully solo shipped a new feature for the product.<br><br>Became a friend to the CTO of the company.",
+      "My first tech role having never taken a formal computer science class.<br><br>I spend a lot of weeks understanding the codebase and picked up on standard skills to contribute to the team. By the end of my internship, I had successfully solo shipped a new feature for the product.<br><br>Became a friend to the CTO of the company. My colleagues continue to be big supporters of my journey.",
   },
 ];
 
