@@ -1,7 +1,7 @@
 const writings = [
     {
       title: 'So I\'m starting over (In Progress)',
-      url: 'https://calvinc.substack.com/p/suffering-growth',
+      url: 'https://ethantrangg.medium.com/so-im-starting-over-1873e4956631',
       description: 'My first year of entrepreneurship wrapped up.'
     }
   ]
