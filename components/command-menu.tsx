@@ -12,20 +12,32 @@ import { useEffect, useState } from 'react'
 
 const links = [
   {
-    url: 'https://calvinchen.me',
+    url: 'https://ethantrang.com',
     title: 'Personal Website'
   },
   {
-    url: 'https://github.com/Calvinjaychen',
+    url: 'https://github.com/ethantrang',
     title: 'GitHub'
   },
   {
-    url: 'https://www.linkedin.com/in/calvinjaychen/',
+    url: 'https://www.linkedin.com/in/ethan-trang/',
     title: 'LinkedIn'
   },
   {
-    url: 'https://twitter.com/CalvinnChenn',
+    url: 'https://x.com/ethantrangg',
     title: 'X'
+  },
+  {
+    url: 'https://www.youtube.com/@ethantrangg',
+    title: 'YouTube'
+  },
+  {
+    url: 'https://www.instagram.com/ethantrangg/',
+    title: 'Instagram'
+  },
+  {
+    url: 'https://tiktok.com/@ethantrangg',
+    title: 'TikTok'
   }
 ]
 
