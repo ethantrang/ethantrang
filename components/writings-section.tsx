@@ -18,7 +18,6 @@ export function WritingsSection() {
           >
             <div className="flex flex-col space-y-1.5">
               <div className="space-y-1">
-                x3
                 <h3 className="tracking-tight text-helvatica text-sm font-normal">
                   {writing.url ? (
                     <a
