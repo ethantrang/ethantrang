@@ -38,7 +38,6 @@ export default function Page() {
           <p className="text-pretty font-helvatica text-md text-blackish">
             I&apos;m exploring AI products and businesses to build.<br /><br />
             I&apos;ve previously worked in AI startups and companies in technical roles, including Relevance AI (Series A) and VNG Corporation (Unicorn). <br /><br />
-            I&apos;ve failed at building an ed-tech product before and had a brief run doing my own AI consulting agency but didn&apos;t feel it right for me.<br /><br />
             I&apos;m based in Sydney but my home is Vietnam. I like to make videos, tell stories, and have deep conversations. Best place to reach me is on{' '}
             <a href="https://www.linkedin.com/in/ethan-trang/" target="_blank" className="dashed-link">
               LinkedIn

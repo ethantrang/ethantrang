@@ -9,6 +9,13 @@ import Image from "next/image";
 // <br><br>
 const workExperience = [
   {
+    company: "Building",
+    logoType: "gradient",
+    gradientColors: "from-emerald-400 to-yellow-400",
+    description:
+      "I'm currently building and growing multiple products and businesses.<br><br>BloomNote (<a href='https://bloomnote.me' target='_blank' rel='noopener noreferrer' class='underline'>bloomnote.me</a>) is a learning tool that transforms YouTube videos, PDFs, and URLs into interactive notebooks - making it easier to learn and retain information.<br><br>Nemo AI (<a href='https://trynemo.com' target='_blank' rel='noopener noreferrer' class='underline'>trynemo.com</a>) is an AI essay-writing copilot that helps students find and properly cite sources while writing.<br><br>Additionally, I run an MVP development service with a small team of developers and content interns. We help clients bring their ideas to life, with potential plans for expansion.",
+  },
+  {
     company: "Exploring",
     logoType: "gradient",
     gradientColors: "from-orange-400 to-yellow-400",
