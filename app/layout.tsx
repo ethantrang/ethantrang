@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Ethan Trang',
-  description: `AI product builder and technologist based in Sydney, with experience at Series A startups and unicorns. Exploring the intersection of artificial intelligence and business innovation.`
+  description: `I build software products. Previously worked at Series A startups and unicorns in Australia and Vietnam.`
 }
 
 export default function RootLayout({
