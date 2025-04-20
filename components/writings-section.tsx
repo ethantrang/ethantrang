@@ -1,5 +1,10 @@
 const writings = [
   {
+    title: "My first $10k month",
+    url: "https://ethantrangg.medium.com/my-first-10k-month-410e69fb1d83",
+    description: "Reflections on a milestone",
+  },
+  {
     title: "So I'm starting over",
     url: "https://ethantrangg.medium.com/so-im-starting-over-1873e4956631",
     description: "My first year of entrepreneurship wrapped up.",
