@@ -1,6 +1,7 @@
 import { Globe, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { WorkSection } from '@/components/work-section'
+import { RandomSection } from '@/components/random-section'
 import { WritingsSection } from '@/components/writings-section'
 import { CommandMenu } from '@/components/command-menu'
 import { SocialLinks } from '@/components/social-links'
@@ -47,6 +48,7 @@ export default function Page() {
         </section>
 
         <WorkSection />
+        <RandomSection />
         <WritingsSection />
       </section>
 

@@ -9,18 +9,12 @@ import Image from "next/image";
 // <br><br>
 const workExperience = [
   {
-    company: "Building",
-    logoType: "gradient",
-    gradientColors: "from-emerald-400 to-yellow-400",
+    company: "Inflect Labs",
+    logoType: "image",
+    logo: "/inflectlabs.jpeg",
+    role: "Founder",
     description:
-      "I'm currently building and growing multiple products and businesses.<br><br>BloomNote (<a href='https://bloomnote.me' target='_blank' rel='noopener noreferrer' class='underline'>bloomnote.me</a>) is a learning tool that transforms YouTube videos, PDFs, and URLs into interactive notebooks - making it easier to learn and retain information.<br><br>Nemo AI (<a href='https://trynemo.com' target='_blank' rel='noopener noreferrer' class='underline'>trynemo.com</a>) is an AI essay-writing copilot that helps students find and properly cite sources while writing.<br><br>Additionally, I run an MVP development service with a small team of developers and content interns. We help clients bring their ideas to life, with potential plans for expansion.",
-  },
-  {
-    company: "Exploring",
-    logoType: "gradient",
-    gradientColors: "from-orange-400 to-yellow-400",
-    description:
-      "My main goal out of this is finding something I'm excited about working on.<br><br>I'm skilled in AI and building a personal brand (mainly LinkedIn). Many niches interest me: content creators, developers, recruitment. And many spaces as well: software, digital products, apps.<br><br>Though I've learned it's important to put myself in a position where I can deliver lots of real value. Role models have showed me it is possible to have it all: work you love, makes you money, grants you freedom.<br><br>Agency and consulting and engineering roles really taught me lots but ultimately it burnt me out - the enjoyment wasn't there and I couldn't see the massive outsized gains from continuing it.",
+      "Inflect Labs is my personal holding company which I set up after leaving my job.<br><br>As of now, I'm building my own products, mostly within AI and edtech, and also run a software development agency, helping other founders build and launch their products. As of May, we've generated $20k+ in revenue. See full list of products on my website <u><a href='https://inflectlabs.co' target='_blank' rel='noopener noreferrer'>inflectlabs.co</a></u>.<br><br>I imagine this becoming my dream company one day. A small, talented, and obsessed team building our own products to improve everyday life for consumers. I look up to teams like SLAM or Oleve who are building a similar thing themselves.<br><br>While I'm not there yet, the only next step that I must continue taking over and over again, is 'becoming'. To become the person that is skilled and capable of solving such problems, attracting such talent, and chasing such a dream.",
   },
   {
     company: "Relevance AI",
@@ -29,13 +23,6 @@ const workExperience = [
     role: "AI Engineer",
     description:
       "I reached out to the cofounders for this job and got the role as a junior AI engineer.<br><br>I worked on client projects building AI BDR agents on our platform, including SafetyCulture, TikTok, and Airwallex.<br><br>I also built the Python SDK out of my own need which grew organically from ~120 to 180+ stars and is now being used by the AI engineering team and developer users.<br><br>I left Relevance in January 2024 to focus on school and personal pursuits. But remain an open-source contributor and advocate.",
-  },
-  {
-    company: "Side quests",
-    logoType: "gradient",
-    gradientColors: "from-green-400 to-purple-400",
-    description:
-      "I began quite a few side quests in 2024.<br><br>I made lifestyle content on Instagram and TikTok for my personal brand. I've been adamant on becoming more fit - finally could do pull-ups and push-ups consistently. And made weekly tech content on LinkedIn for a while. Cooking and journalling are also calming activities I do.<br><br>Prior to that, I've done things like going on a solo working holiday in Taiwan to improve my Mandarin and working in sales and marketing for a cloud GPU business.<br><br>I want to try out standup comedy and busking (guitar) in Australia. Also getting back into making content for myself now.",
   },
   {
     company: "Dory AI",
@@ -71,19 +58,13 @@ export function WorkSection() {
               <AccordionTrigger>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-x-2">
-                    {work.logoType === "gradient" ? (
-                      <div
-                        className={`h-6 w-6 rounded-md bg-gradient-to-br ${work.gradientColors}`}
-                      />
-                    ) : (
-                      <Image
-                        src={work.logo as string}
-                        alt={`${work.company} logo`}
-                        width={24}
-                        height={24}
-                        className="h-6 w-6 rounded-md"
-                      />
-                    )}
+                    <Image
+                      src={work.logo as string}
+                      alt={`${work.company} logo`}
+                      width={24}
+                      height={24}
+                      className="h-6 w-6 rounded-md"
+                    />
                     <span className="font-helvatica text-sm">
                       {work.company}
                     </span>
