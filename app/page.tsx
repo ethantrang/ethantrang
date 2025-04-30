@@ -1,4 +1,4 @@
-import { Globe, Mail } from 'lucide-react'
+import { Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { WorkSection } from '@/components/work-section'
 import { RandomSection } from '@/components/random-section'
@@ -20,8 +20,15 @@ export default function Page() {
                 href="https://www.google.com/maps/place/Sydney+NSW,+Australia"
                 target="_blank"
               >
-                <Globe className="h-3 w-3" />
                 Sydney, Australia
+              </a>
+              <span className="mx-1">•</span>
+              <a
+                className="inline-flex gap-x-1.5 align-baseline leading-none hover:underline"
+                href="https://www.google.com/maps/place/Ho+Chi+Minh+City,+Vietnam"
+                target="_blank"
+              >
+                Ho Chi Minh City, Vietnam
               </a>
             </p>
             <div className="flex gap-x-1 pt-1 font-mono text-sm text-muted-foreground print:hidden">
