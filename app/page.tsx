@@ -1,10 +1,10 @@
-import { Mail } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { WorkSection } from '@/components/work-section'
-import { RandomSection } from '@/components/random-section'
-import { WritingsSection } from '@/components/writings-section'
-import { CommandMenu } from '@/components/command-menu'
-import { SocialLinks } from '@/components/social-links'
+import { Mail } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { WorkSection } from "@/components/work-section";
+import { RandomSection } from "@/components/random-section";
+import { WritingsSection } from "@/components/writings-section";
+import { CommandMenu } from "@/components/command-menu";
+import { SocialLinks } from "@/components/social-links";
 
 export default function Page() {
   return (
@@ -44,10 +44,25 @@ export default function Page() {
 
         <section className="flex min-h-0 flex-col">
           <p className="text-pretty font-helvatica text-md text-blackish">
-            I&apos;m exploring AI products and businesses to build.<br /><br />
-            I&apos;ve previously worked in AI startups and companies in technical roles, including Relevance AI (Series A) and VNG Corporation (Unicorn). <br /><br />
-            I&apos;m based in Sydney but my home is Vietnam. I like to make videos, tell stories, and have deep conversations. Best place to reach me is on{' '}
-            <a href="https://www.linkedin.com/in/ethan-trang/" target="_blank" className="dashed-link">
+            I&apos;m currently working on{" "}
+            <a
+              href="https://www.inflectlabs.co/"
+              target="_blank"
+              className="dashed-link"
+            >
+              Inflect Labs
+            </a>
+            <br />
+            <br />
+            I&apos;ve previously worked technical roles, including Relevance AI
+            (Series B) and VNG Corporation (Unicorn). <br />
+            <br />
+            Best place to reach me is on{" "}
+            <a
+              href="https://www.linkedin.com/in/ethan-trang/"
+              target="_blank"
+              className="dashed-link"
+            >
               LinkedIn
             </a>
             .
@@ -60,15 +75,14 @@ export default function Page() {
       </section>
 
       <CommandMenu />
-      
+
       <p className="fixed bottom-0 left-0 right-0 border-t border-t-muted bg-white p-1 text-center text-sm text-muted-foreground print:hidden">
-        Press{' '}
+        Press{" "}
         <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
           <span className="text-xs">⌘</span>J
-        </kbd>{' '}
+        </kbd>{" "}
         to open the command menu
       </p>
     </main>
-  )
+  );
 }
-
