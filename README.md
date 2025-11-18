@@ -1,22 +1,6 @@
 # Ethan Trang
 
-This is my personal website.
+founder @ inflectlabs.co 
 
-Feel free to fork and use as a template (give a star while you're at it)
+my personal site @ ethantrang.com 
 
-Built with:
-
-- NextJS 14
-- Typescript
-- Tailwind CSS
-- Vercel
-
-Content:
-
-- MDX files with dynamic content fetching
-- Generate favicons with https://realfavicongenerator.net/
-
-Todo:
-
-- Live city location
-- Live todo list
