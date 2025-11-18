@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { CommandMenu } from "@/components/command-menu";
+import { AutoBreadcrumb } from "@/components/auto-breadcrumb";
 
 export const metadata: Metadata = {
   title: "Ethan Trang",
@@ -16,7 +17,8 @@ export default function RootLayout({
     <html lang="en" className="light">
       <body>
         <main className="container relative mx-auto scroll-my-12 overflow-auto p-4 print:p-12 md:p-16 mb-24">
-          <div className="mx-auto w-full max-w-custom space-y-8 bg-white print:space-y-6">
+          <div className="mx-auto w-full max-w-custom space-y-8 print:space-y-6">
+            <AutoBreadcrumb />
             {children}
           </div>
         </main>
