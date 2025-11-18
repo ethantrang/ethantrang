@@ -5,7 +5,7 @@ import { AutoBreadcrumb } from "@/components/auto-breadcrumb";
 
 export const metadata: Metadata = {
   title: "Ethan Trang",
-  description: `I build software products. Previously worked at Series A startups and unicorns in Australia and Vietnam.`,
+  description: `Founder of Inflect Labs. Make good software.`,
 };
 
 export default function RootLayout({
