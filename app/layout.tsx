@@ -16,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="light">
       <body>
-        <main className="container relative mx-auto scroll-my-12 overflow-auto p-4 md:p-8 lg:p-16 mb-24">
+        <main className="container relative mx-auto scroll-my-12 overflow-auto p-8 md:p-16 lg:p-24 mb-24">
           <div className="mx-auto w-full max-w-2xl space-y-8">
             <AutoBreadcrumb />
             {children}
