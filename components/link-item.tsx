@@ -13,13 +13,15 @@ export function LinkItem({ icon, title, url }: LinkItemProps) {
     // If no icon provided, use default black-gray gradient
     if (!icon) {
       return (
-        <div className="h-4 w-4 bg-gradient-to-br from-gray-800 to-gray-500" />
+        <div className="h-2 w-2 rounded-full bg-gradient-to-br from-gray-800 to-gray-500" />
       );
     }
 
     // Check if it's a gradient class string (e.g., "from-emerald-400 to-yellow-400")
     if (icon.startsWith("from-") && icon.includes("to-")) {
-      return <div className={`h-4 w-4 bg-gradient-to-br ${icon}`} />;
+      return (
+        <div className={`h-2 w-2 rounded-full bg-gradient-to-br ${icon}`} />
+      );
     }
     // Otherwise treat it as an image path
     return (
