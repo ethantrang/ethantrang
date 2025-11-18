@@ -10,10 +10,30 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import Link from "next/link";
-import { getContentBySlug } from "@/lib/content-config";
+import { useEffect, useState } from "react";
+
+type ContentItem = {
+  slug: string;
+  title: string;
+  category: 'work' | 'random' | 'writings' | 'social';
+  iconType?: 'image' | 'gradient' | 'svg';
+  icon?: string;
+  gradientColors?: string;
+  externalUrl?: string;
+  role?: string;
+};
 
 export function AutoBreadcrumb() {
   const pathname = usePathname();
+  const [contentItems, setContentItems] = useState<ContentItem[]>([]);
+
+  // Fetch content items dynamically
+  useEffect(() => {
+    fetch('/api/content')
+      .then(res => res.json())
+      .then(data => setContentItems(data))
+      .catch(err => console.error('Failed to fetch content:', err));
+  }, []);
 
   // Don't show breadcrumb on home page
   if (pathname === "/") {
@@ -52,7 +72,9 @@ export function AutoBreadcrumb() {
     const category = segments[0] as "work" | "random" | "writings" | "social";
     const slug = segments[1];
     const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
-    const item = getContentBySlug(category, slug);
+    const item = contentItems.find(
+      (item) => item.category === category && item.slug === slug
+    );
 
     return (
       <Breadcrumb className="mb-8">

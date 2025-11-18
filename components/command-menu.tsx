@@ -10,10 +10,20 @@ import {
 } from "@/components/ui/command";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { contentItems } from "@/lib/content-config";
 
-// Dynamically extract links from content config
-const getLinks = () => {
+type ContentItem = {
+  slug: string;
+  title: string;
+  category: 'work' | 'random' | 'writings' | 'social';
+  iconType?: 'image' | 'gradient' | 'svg';
+  icon?: string;
+  gradientColors?: string;
+  externalUrl?: string;
+  role?: string;
+};
+
+// Dynamically extract links from content items
+const getLinks = (contentItems: ContentItem[]) => {
   // Get external links (social and writings)
   const externalLinks = contentItems
     .filter((item) => item.externalUrl)
@@ -41,8 +51,18 @@ const getLinks = () => {
 
 export function CommandMenu() {
   const [open, setOpen] = useState(false);
+  const [contentItems, setContentItems] = useState<ContentItem[]>([]);
   const router = useRouter();
-  const links = useMemo(() => getLinks(), []);
+  
+  // Fetch content items dynamically
+  useEffect(() => {
+    fetch('/api/content')
+      .then(res => res.json())
+      .then(data => setContentItems(data))
+      .catch(err => console.error('Failed to fetch content:', err));
+  }, []);
+  
+  const links = useMemo(() => getLinks(contentItems), [contentItems]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
