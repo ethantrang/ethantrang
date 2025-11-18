@@ -88,19 +88,37 @@
   body {
     @apply bg-background text-foreground;
   }
-}
 
-.dashed-link {
-  text-decoration: underline;
-  text-decoration-style: dashed;
-  text-underline-offset: 4px;
+  /* Default markdown styles */
+  h1 {
+    @apply text-3xl mb-4;
+  }
+  
+  h2 {
+    @apply text-2xl mb-3;
+  }
+  
+  p {
+    @apply mb-4;
+  }
+  
+  a {
+    @apply text-foreground underline;
+  }
+  
+  ul, ol {
+    @apply mb-4 ml-6;
+  }
+  
+  li {
+    @apply mb-2;
+  }
+  
+  strong {
+    @apply font-semibold;
+  }
+  
+  em {
+    @apply italic;
+  }
 }
-
-.max-w-custom {
-  max-width: 672px;
-}
-
-.font-helvatica {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-}
-

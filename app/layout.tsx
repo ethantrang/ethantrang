@@ -1,25 +1,28 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
-
-const inter = Inter({ subsets: ['latin'] })
+import type { Metadata } from "next";
+import "./globals.css";
+import { CommandMenu } from "@/components/command-menu";
 
 export const metadata: Metadata = {
-  title: 'Ethan Trang',
-  description: `I build software products. Previously worked at Series A startups and unicorns in Australia and Vietnam.`
-}
+  title: "Ethan Trang",
+  description: `I build software products. Previously worked at Series A startups and unicorns in Australia and Vietnam.`,
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en" className="light">
-      <body className={inter.className}>
-        {children}
+      <body>
+        <main className="container relative mx-auto scroll-my-12 overflow-auto p-4 print:p-12 md:p-16 mb-24">
+          <div className="mx-auto w-full max-w-custom space-y-8 bg-white print:space-y-6">
+            {children}
+          </div>
+        </main>
+
+        <CommandMenu />
       </body>
     </html>
-  )
+  );
 }
-
