@@ -99,11 +99,11 @@
   }
   
   p {
-    @apply mb-4;
+    @apply mb-2;
   }
   
   a {
-    @apply text-foreground underline;
+    @apply text-foreground underline underline-offset-4;
   }
   
   ul, ol {
