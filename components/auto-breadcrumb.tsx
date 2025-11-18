@@ -38,7 +38,9 @@ export function AutoBreadcrumb() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{categoryName}</BreadcrumbPage>
+            <BreadcrumbLink asChild>
+              <Link href={`/${category}`}>{categoryName}</Link>
+            </BreadcrumbLink>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -70,7 +72,9 @@ export function AutoBreadcrumb() {
             <>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>{item.title}</BreadcrumbPage>
+                <BreadcrumbLink asChild>
+                  <Link href={`/${category}/${slug}`}>{item.title}</Link>
+                </BreadcrumbLink>
               </BreadcrumbItem>
             </>
           )}

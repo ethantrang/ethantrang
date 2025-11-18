@@ -115,6 +115,11 @@
     @apply mb-4 ml-6;
   }
   
+  /* Remove margin for breadcrumb list */
+  nav[aria-label="breadcrumb"] ol {
+    @apply ml-0;
+  }
+  
   li {
     @apply mb-2;
   }
