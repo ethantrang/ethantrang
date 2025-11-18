@@ -15,7 +15,7 @@ export function PageItem({ icon, title, path }: PageItemProps) {
 
     // Check if it's a gradient class string (e.g., "from-emerald-400 to-yellow-400")
     if (icon.startsWith("from-") && icon.includes("to-")) {
-      return <div className={`h-6 w-6 rounded-md bg-gradient-to-br ${icon}`} />;
+      return <div className={`h-4 w-4 rounded-md bg-gradient-to-br ${icon}`} />;
     }
     // Otherwise treat it as an image path
     return (
