@@ -15,3 +15,8 @@ Content:
 
 - MDX files with dynamic content fetching
 - Generate favicons with https://realfavicongenerator.net/
+
+Todo:
+
+- Live city location
+- Live todo list
