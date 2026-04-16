@@ -1,117 +1,80 @@
 import { NextResponse } from "next/server";
+import { readFileSync, writeFileSync, unlinkSync, readdirSync, statSync, mkdirSync, renameSync } from "fs";
+import { join, dirname } from "path";
 
-const GITHUB_API = "https://api.github.com";
-
-function githubHeaders() {
-  return {
-    Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-    Accept: "application/vnd.github.v3+json",
-    "Content-Type": "application/json",
-    "X-GitHub-Api-Version": "2022-11-28",
-  };
+function abs(path: string) {
+  return join(process.cwd(), path);
 }
 
-function repoBase() {
-  return `${GITHUB_API}/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/contents`;
-}
-
-// GET /api/admin/files?path=content/home.md  (file → { content, sha })
-// GET /api/admin/files?path=content/work     (directory → { items: [...] })
+// GET ?path=content/home.md  → { content }
+// GET ?path=content/work     → { items: [{ name, path, type }] }
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const path = searchParams.get("path");
   if (!path) return NextResponse.json({ error: "path required" }, { status: 400 });
 
-  const res = await fetch(`${repoBase()}/${path}`, {
-    headers: githubHeaders(),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    return NextResponse.json({ error: "File not found" }, { status: res.status });
+  try {
+    const stat = statSync(abs(path));
+    if (stat.isDirectory()) {
+      const items = readdirSync(abs(path)).map(name => {
+        const isDir = statSync(join(abs(path), name)).isDirectory();
+        return { name, path: `${path}/${name}`, type: isDir ? "directory" : "file" };
+      }).filter(item => item.type === "directory" || item.name.endsWith(".md"));
+      return NextResponse.json({ items });
+    }
+    return NextResponse.json({ content: readFileSync(abs(path), "utf-8") });
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-
-  const data = await res.json();
-
-  // Directory listing — GitHub returns an array
-  if (Array.isArray(data)) {
-    const items = data
-      .filter((f: { type: string }) => f.type === "file")
-      .map((f: { name: string; path: string }) => ({ name: f.name, path: f.path }));
-    return NextResponse.json({ items });
-  }
-
-  // Single file
-  const content = Buffer.from(data.content, "base64").toString("utf-8");
-  return NextResponse.json({ content, sha: data.sha });
 }
 
-// PUT /api/admin/files — create or update
+// POST { path } → creates directory
+export async function POST(req: Request) {
+  const { path } = await req.json();
+  if (!path) return NextResponse.json({ error: "path required" }, { status: 400 });
+  try {
+    mkdirSync(abs(path), { recursive: true });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+
+// PUT { path, content } → writes file to disk
 export async function PUT(req: Request) {
   const { path, content } = await req.json();
   if (!path || content === undefined) {
     return NextResponse.json({ error: "path and content required" }, { status: 400 });
   }
-
-  // Fetch current SHA if file exists (required for updates)
-  let sha: string | undefined;
-  const existing = await fetch(`${repoBase()}/${path}`, {
-    headers: githubHeaders(),
-    cache: "no-store",
-  });
-  if (existing.ok) {
-    const data = await existing.json();
-    sha = data.sha;
+  try {
+    mkdirSync(dirname(abs(path)), { recursive: true });
+    writeFileSync(abs(path), content, "utf-8");
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
-
-  const body: Record<string, unknown> = {
-    message: `Update ${path}`,
-    content: Buffer.from(content, "utf-8").toString("base64"),
-  };
-  if (sha) body.sha = sha;
-
-  const res = await fetch(`${repoBase()}/${path}`, {
-    method: "PUT",
-    headers: githubHeaders(),
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const err = await res.json();
-    return NextResponse.json({ error: err.message }, { status: res.status });
-  }
-
-  return NextResponse.json({ ok: true });
 }
 
-// DELETE /api/admin/files
+// PATCH { path, newPath } → renames file or directory
+export async function PATCH(req: Request) {
+  const { path, newPath } = await req.json();
+  if (!path || !newPath) return NextResponse.json({ error: "path and newPath required" }, { status: 400 });
+  try {
+    renameSync(abs(path), abs(newPath));
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+
+// DELETE { path } → removes file from disk
 export async function DELETE(req: Request) {
   const { path } = await req.json();
   if (!path) return NextResponse.json({ error: "path required" }, { status: 400 });
-
-  // Fetch SHA (required for deletion)
-  const existing = await fetch(`${repoBase()}/${path}`, {
-    headers: githubHeaders(),
-    cache: "no-store",
-  });
-  if (!existing.ok) {
-    return NextResponse.json({ error: "File not found" }, { status: 404 });
+  try {
+    unlinkSync(abs(path));
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
-  const data = await existing.json();
-
-  const res = await fetch(`${repoBase()}/${path}`, {
-    method: "DELETE",
-    headers: githubHeaders(),
-    body: JSON.stringify({
-      message: `Delete ${path}`,
-      sha: data.sha,
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json();
-    return NextResponse.json({ error: err.message }, { status: res.status });
-  }
-
-  return NextResponse.json({ ok: true });
 }

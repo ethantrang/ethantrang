@@ -1,5 +1,7 @@
 # Relevance AI
 
+Date: 01/07/2024
+
 I worked as a Junior AI engineer at Relevance AI.
 
 In July 2024, I was looking to get a proper job after not getting much success from startup project I was doing. I reached out to the founders on Linkedin and got myself an interview.

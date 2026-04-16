@@ -1,5 +1,7 @@
 # Inflect Labs
 
+Date: 01/04/2025
+
 Inflect Labs is my software company.
 
 I set it up in April 2025, and since then (as of Nov 2025) we've done over $100k in revenue.

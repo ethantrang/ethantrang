@@ -1,6 +1,6 @@
 # So I'm starting over
 
-Date: Jan 24, 2025
+Date: 24/01/2025
 
 Medium [story](https://ethantrangg.medium.com/so-im-starting-over-1873e4956631)
 

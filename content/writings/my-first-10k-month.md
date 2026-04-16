@@ -1,6 +1,6 @@
 # My first $10k month
 
-Date: April 20, 2025
+Date: 20/04/2025
 
 Medium [story](https://ethantrangg.medium.com/my-first-10k-month-410e69fb1d83)
 

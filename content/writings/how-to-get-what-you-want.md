@@ -1,6 +1,6 @@
 # How to get what you want
 
-Date: Jun 4, 2025
+Date: 04/06/2025
 
 Medium [story](https://medium.com/@ethantrangg/how-to-get-what-you-want-5dbae97e44ba)
 

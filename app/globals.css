@@ -105,19 +105,9 @@
   a {
     @apply text-foreground underline underline-offset-4 hover:underline;
   }
-  
-  /* Breadcrumb links - only underline on hover */
-  nav[aria-label="breadcrumb"] a {
-    @apply no-underline hover:underline;
-  }
-  
+
   ul, ol {
     @apply mb-4 ml-6;
-  }
-  
-  /* Remove margin for breadcrumb list */
-  nav[aria-label="breadcrumb"] ol {
-    @apply ml-0;
   }
   
   li {

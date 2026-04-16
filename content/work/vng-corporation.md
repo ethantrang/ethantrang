@@ -1,5 +1,7 @@
 # VNG Corporation
 
+Date: 01/01/2024
+
 Intern of VNG's AI Lab, worked on building an enterprise AI chatbot (RAG-based).
 
 Got this job because I refused to accept I wouldn't get an internship after high school during my gap semester. Talked to data scientist, then his manager, and so forth until I talked to the CTO.

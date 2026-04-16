@@ -1,6 +1,6 @@
 # How I picked my cofounder
 
-Date: Sep 28, 2025
+Date: 28/09/2025
 
 Medium [story](https://medium.com/@ethantrangg/how-i-picked-my-cofounder-a47a01c018e2)
 

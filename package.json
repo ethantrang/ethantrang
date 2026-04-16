@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "admin": "open http://localhost:3000/admin && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

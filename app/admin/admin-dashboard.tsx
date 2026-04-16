@@ -1,56 +1,170 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { ResizableDivider } from "@/components/resizable-divider";
+import * as Dialog from "@radix-ui/react-dialog";
 
-type FileTree = {
-  home: string | null;
-  work: string[];
-  writings: string[];
-};
+type Section = { name: string; files: string[] };
+type FileTree = { rootFiles: string[]; sections: Section[] };
+type ActiveFile = { path: string; content: string; isNew: boolean };
+type Popover =
+  | { type: "delete"; path: string }
+  | { type: "new-file"; section: string }
+  | { type: "new-section" }
+  | { type: "rename-section"; name: string }
+  | { type: "rename-file"; path: string };
 
-type ActiveFile = {
-  path: string;
-  content: string;
-  isNew: boolean;
-};
+function DeletePopover({ path, onConfirm, onCancel }: { path: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="absolute right-0 top-full mt-1 z-10 border border-gray-200 rounded bg-white shadow-sm p-3 w-56 space-y-2">
+      <p className="text-xs text-gray-500">Delete <span className="underline text-gray-800">{path.split("/").pop()}</span>?</p>
+      <div className="flex gap-2">
+        <button onClick={onConfirm} className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+        <button onClick={onCancel} className="text-xs px-2 py-1 border border-gray-200 rounded hover:bg-gray-50">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function InputPopover({ label, placeholder, onConfirm, onCancel }: {
+  label: string;
+  placeholder: string;
+  onConfirm: (value: string) => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = value.trim();
+    if (trimmed) onConfirm(trimmed);
+  }
+
+  return (
+    <div className="absolute left-0 top-full mt-1 z-10 border border-gray-200 rounded bg-white shadow-sm p-3 w-52 space-y-2">
+      <p className="text-xs text-gray-400 uppercase tracking-wide">{label}</p>
+      <form onSubmit={handleSubmit} className="space-y-2">
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          placeholder={placeholder}
+          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-gray-400"
+        />
+        <div className="flex gap-2">
+          <button type="submit" disabled={!value.trim()} className="text-xs px-2 py-1 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-40">
+            Create
+          </button>
+          <button type="button" onClick={onCancel} className="text-xs px-2 py-1 border border-gray-200 rounded hover:bg-gray-50">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
 
 export function AdminDashboard({ initialPath }: { initialPath?: string }) {
-  const [fileTree, setFileTree] = useState<FileTree>({ home: null, work: [], writings: [] });
+  const [fileTree, setFileTree] = useState<FileTree>({ rootFiles: [], sections: [] });
   const [active, setActive] = useState<ActiveFile | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [status, setStatus] = useState("");
+  const [popover, setPopover] = useState<Popover | null>(null);
+  const [renamingSectionName, setRenamingSectionName] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
-  // Load file tree via GitHub API listing
+  async function extractDate(content: string): Promise<Date | null> {
+    const dateMatch = content.match(/^Date:\s*(\d{2}\/\d{2}\/\d{4})$/m);
+    if (!dateMatch) return null;
+    const [day, month, year] = dateMatch[1].split("/").map(Number);
+    const date = new Date(year, month - 1, day);
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  async function loadTree() {
+    const rootRes = await fetch("/api/admin/files?path=content");
+    const rootData = rootRes.ok ? await rootRes.json() : { items: [] };
+    const items: { name: string; path: string; type: string }[] = rootData.items ?? [];
+
+    const rootFiles = items
+      .filter(i => i.type === "file" && i.name.endsWith(".md"))
+      .map(i => `content/${i.name}`);
+
+    const sections = await Promise.all(
+      items
+        .filter(i => i.type === "directory")
+        .map(async dir => {
+          const res = await fetch(`/api/admin/files?path=content/${dir.name}`);
+          const data = res.ok ? await res.json() : { items: [] };
+          let files = (data.items ?? []).map((f: { name: string }) => `content/${dir.name}/${f.name}`);
+
+          // Sort files by date (newest first) if they have dates
+          files = await Promise.all(
+            files.map(async (path: string) => {
+              const fileRes = await fetch(`/api/admin/files?path=${encodeURIComponent(path)}`);
+              const fileData = fileRes.ok ? await fileRes.json() : { content: "" };
+              const date = await extractDate(fileData.content || "");
+              return { path, date };
+            })
+          ).then(filesWithDates =>
+            filesWithDates
+              .sort((a, b) => {
+                // Files with dates come first, sorted newest-first
+                if (a.date && b.date) return b.date.getTime() - a.date.getTime();
+                if (a.date) return -1;
+                if (b.date) return 1;
+                // Files without dates sorted alphabetically
+                return a.path.localeCompare(b.path);
+              })
+              .map(f => f.path)
+          );
+
+          return {
+            name: dir.name,
+            files,
+          };
+        })
+    );
+
+    setFileTree({ rootFiles, sections });
+  }
+
+  useEffect(() => { loadTree(); }, []);
+
+  // Warn about unsaved changes when leaving the page
   useEffect(() => {
-    async function loadTree() {
-      const [workRes, writingsRes] = await Promise.all([
-        fetch("/api/admin/files?path=content/work"),
-        fetch("/api/admin/files?path=content/writings"),
-      ]);
-      const workData = workRes.ok ? await workRes.json() : { items: [] };
-      const writingsData = writingsRes.ok ? await writingsRes.json() : { items: [] };
-      setFileTree({
-        home: "content/home.md",
-        work: (workData.items ?? []).map((f: { name: string }) => `content/work/${f.name}`),
-        writings: (writingsData.items ?? []).map((f: { name: string }) => `content/writings/${f.name}`),
-      });
-    }
-    loadTree();
-  }, []);
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Check if there are unsaved changes
+      if (active && active.isNew) {
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [active]);
 
   const loadFile = useCallback(async (path: string) => {
+    setStatus("Loading…");
     const res = await fetch(`/api/admin/files?path=${encodeURIComponent(path)}`);
+    const data = await res.json();
     if (res.ok) {
-      const data = await res.json();
       setActive({ path, content: data.content, isNew: false });
       setStatus("");
+      setPopover(null);
+    } else {
+      setStatus(`Error: ${data.error ?? res.status}`);
     }
   }, []);
 
-  useEffect(() => {
-    if (initialPath) loadFile(initialPath);
-  }, [initialPath, loadFile]);
+  useEffect(() => { if (initialPath) loadFile(initialPath); }, [initialPath, loadFile]);
 
   async function handleSave() {
     if (!active) return;
@@ -71,9 +185,9 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     setSaving(false);
   }
 
-  async function handleDelete() {
+  async function confirmDelete() {
     if (!active || active.isNew) return;
-    if (!confirm(`Delete ${active.path}?`)) return;
+    setPopover(null);
     setDeleting(true);
     const res = await fetch("/api/admin/files", {
       method: "DELETE",
@@ -81,13 +195,7 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
       body: JSON.stringify({ path: active.path }),
     });
     if (res.ok) {
-      // Remove from tree
-      const name = active.path.split("/").pop()!;
-      if (active.path.startsWith("content/work/")) {
-        setFileTree(t => ({ ...t, work: t.work.filter(f => f !== active.path) }));
-      } else if (active.path.startsWith("content/writings/")) {
-        setFileTree(t => ({ ...t, writings: t.writings.filter(f => f !== active.path) }));
-      }
+      await loadTree();
       setActive(null);
       setStatus("Deleted ✓");
     } else {
@@ -97,87 +205,273 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     setDeleting(false);
   }
 
-  function handleNewFile(category: "work" | "writings") {
-    const slug = prompt(`Slug for new ${category} entry (e.g. my-post):`);
-    if (!slug) return;
-    const path = `content/${category}/${slug}.md`;
-    setActive({ path, content: `# ${slug}\n\n`, isNew: true });
+  function confirmNewFile(slug: string, section: string) {
+    const path = `content/${section}/${slug}.md`;
+    const today = new Date();
+    const dateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
+    const content = `# ${slug}\n\nDate: ${dateStr}\n\n`;
+    setActive({ path, content, isNew: true });
     setStatus("");
+    setPopover(null);
+  }
+
+  async function confirmRenameSection(oldName: string, newName: string) {
+    if (oldName === newName) { setPopover(null); return; }
+    const res = await fetch("/api/admin/files", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: `content/${oldName}`, newPath: `content/${newName}` }),
+    });
+    if (res.ok) {
+      // Update active path if it was inside the renamed section
+      if (active?.path.startsWith(`content/${oldName}/`)) {
+        setActive(prev => prev ? { ...prev, path: prev.path.replace(`content/${oldName}/`, `content/${newName}/`) } : null);
+      }
+      await loadTree();
+    } else {
+      const data = await res.json();
+      setStatus(`Error: ${data.error}`);
+    }
+    setPopover(null);
+  }
+
+  async function confirmRenameFile(oldPath: string, newSlug: string) {
+    const parts = oldPath.split("/");
+    const fileName = parts.pop()?.replace(/\.md$/, "") ?? "";
+    if (fileName === newSlug) { setPopover(null); return; }
+
+    const newPath = oldPath.replace(/\/[^/]+\.md$/, `/${newSlug}.md`);
+    const res = await fetch("/api/admin/files", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: oldPath, newPath }),
+    });
+    if (res.ok) {
+      // Update active path if renaming the current file
+      if (active?.path === oldPath) {
+        setActive(prev => prev ? { ...prev, path: newPath } : null);
+      }
+      await loadTree();
+    } else {
+      const data = await res.json();
+      setStatus(`Error: ${data.error}`);
+    }
+    setPopover(null);
+  }
+
+  async function confirmNewSection(name: string) {
+    const res = await fetch("/api/admin/files", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: `content/${name}` }),
+    });
+    if (res.ok) {
+      setFileTree(t => ({ ...t, sections: [...t.sections, { name, files: [] }] }));
+    } else {
+      const data = await res.json();
+      setStatus(`Error: ${data.error}`);
+    }
+    setPopover(null);
   }
 
   function displayName(path: string) {
     return path.split("/").pop()?.replace(/\.md$/, "") ?? path;
   }
 
+  function getDateFromContent(content: string): string {
+    const match = content.match(/^Date:\s*(.+?)$/m);
+    return match ? match[1] : "";
+  }
+
+  function updateDateInContent(content: string, newDate: string): string {
+    const dateMatch = content.match(/^Date:\s*(.+?)$/m);
+    if (dateMatch) {
+      return content.replace(/^Date:\s*(.+?)$/m, `Date: ${newDate}`);
+    }
+    // If no date exists, add it after the title
+    return content.replace(/^(# .+\n)/, `$1\nDate: ${newDate}\n`);
+  }
+
+  function handleDateChange(newDate: string) {
+    if (active) {
+      const updated = updateDateInContent(active.content, newDate);
+      setActive({ ...active, content: updated });
+    }
+  }
+
+  const canDelete = active && !active.isNew;
+  const currentDate = active ? getDateFromContent(active.content) : "";
+
   return (
-    <div className="flex gap-0 min-h-[600px] border border-gray-200 rounded">
+    <div className="flex gap-0 min-h-[calc(100vh-2rem)] border border-gray-200 rounded">
       {/* Sidebar */}
-      <aside className="w-48 flex-shrink-0 border-r border-gray-200 p-4 space-y-4">
-        {/* home.md */}
-        {fileTree.home && (
-          <div>
-            <button
-              onClick={() => loadFile(fileTree.home!)}
-              className={`text-sm w-full text-left hover:underline ${active?.path === fileTree.home ? "font-medium" : ""}`}
-            >
-              home.md
-            </button>
-          </div>
-        )}
-
-        {/* work/ */}
-        <div>
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">work/</p>
-          <div className="space-y-1 pl-2">
-            {fileTree.work.map(path => (
+      <aside className="w-48 md:w-64 flex-shrink-0 p-4 space-y-4 overflow-y-auto">
+        {/* Root files (home.md etc) */}
+        {fileTree.rootFiles.map(path => {
+          const isActive = active?.path === path;
+          return (
+            <div key={path} className="flex items-center gap-1 group">
               <button
-                key={path}
                 onClick={() => loadFile(path)}
-                className={`text-sm w-full text-left hover:underline block ${active?.path === path ? "font-medium" : ""}`}
+                className={`text-sm flex-1 text-left ${isActive ? "underline" : "hover:underline"}`}
               >
                 {displayName(path)}
               </button>
-            ))}
-            <button
-              onClick={() => handleNewFile("work")}
-              className="text-sm text-gray-400 hover:text-gray-700"
-            >
-              + New
-            </button>
-          </div>
-        </div>
-
-        {/* writings/ */}
-        <div>
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">writings/</p>
-          <div className="space-y-1 pl-2">
-            {fileTree.writings.map(path => (
               <button
-                key={path}
-                onClick={() => loadFile(path)}
-                className={`text-sm w-full text-left hover:underline block ${active?.path === path ? "font-medium" : ""}`}
+                onClick={() => setPopover(p => p?.type === "rename-file" && p.path === path ? null : { type: "rename-file", path })}
+                className="text-xs text-gray-300 hover:text-gray-500 leading-none opacity-0 group-hover:opacity-100"
+                title="Rename file"
               >
-                {displayName(path)}
+                ✎
               </button>
-            ))}
-            <button
-              onClick={() => handleNewFile("writings")}
-              className="text-sm text-gray-400 hover:text-gray-700"
-            >
-              + New
-            </button>
+              {popover?.type === "rename-file" && popover.path === path && (
+                <InputPopover
+                  label="Rename file"
+                  placeholder={displayName(path)}
+                  onConfirm={newSlug => confirmRenameFile(path, newSlug)}
+                  onCancel={() => setPopover(null)}
+                />
+              )}
+            </div>
+          );
+        })}
+
+        {/* Sections */}
+        {fileTree.sections.map(section => (
+          <div key={section.name}>
+            <div className="relative flex items-center gap-1 mb-1 group">
+              <p className="text-sm flex-1">{section.name}</p>
+              <button
+                onClick={() => {
+                  setRenamingSectionName(section.name);
+                  setRenameValue(section.name);
+                }}
+                className="text-xs text-gray-300 hover:text-gray-500 leading-none opacity-0 group-hover:opacity-100"
+                title="Rename section"
+              >
+                ✎
+              </button>
+            </div>
+            <div className="space-y-1 pl-2">
+              {section.files.map(path => {
+                const isActive = active?.path === path;
+                return (
+                  <div key={path} className="flex items-center gap-1 group">
+                    <button
+                      onClick={() => loadFile(path)}
+                      className={`text-sm flex-1 text-left ${isActive ? "underline" : "hover:underline"}`}
+                    >
+                      {displayName(path)}
+                    </button>
+                    <button
+                      onClick={() => setPopover(p => p?.type === "rename-file" && p.path === path ? null : { type: "rename-file", path })}
+                      className="text-xs text-gray-300 hover:text-gray-500 leading-none opacity-0 group-hover:opacity-100"
+                      title="Rename file"
+                    >
+                      ✎
+                    </button>
+                    {popover?.type === "rename-file" && popover.path === path && (
+                      <InputPopover
+                        label="Rename file"
+                        placeholder={displayName(path)}
+                        onConfirm={newSlug => confirmRenameFile(path, newSlug)}
+                        onCancel={() => setPopover(null)}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+              <div className="relative">
+                <button
+                  onClick={() => setPopover(p => p?.type === "new-file" && p.section === section.name ? null : { type: "new-file", section: section.name })}
+                  className="text-sm text-gray-400 hover:text-gray-700"
+                >
+                  + new
+                </button>
+                {popover?.type === "new-file" && popover.section === section.name && (
+                  <InputPopover
+                    label={`New in ${section.name}/`}
+                    placeholder="slug-here"
+                    onConfirm={slug => confirmNewFile(slug, section.name)}
+                    onCancel={() => setPopover(null)}
+                  />
+                )}
+              </div>
+            </div>
           </div>
+        ))}
+
+        {/* Add section */}
+        <div className="relative">
+          <button
+            onClick={() => setPopover(p => p?.type === "new-section" ? null : { type: "new-section" })}
+            className="text-sm text-gray-400 hover:text-gray-700"
+          >
+            + section
+          </button>
+          {popover?.type === "new-section" && (
+            <InputPopover
+              label="New section"
+              placeholder="section-name"
+              onConfirm={confirmNewSection}
+              onCancel={() => setPopover(null)}
+            />
+          )}
         </div>
       </aside>
 
-      {/* Editor */}
-      <div className="flex-1 flex flex-col">
+      <ResizableDivider />
+
+      {/* Rename Section Dialog */}
+      <Dialog.Root open={renamingSectionName !== null} onOpenChange={(open) => !open && setRenamingSectionName(null)}>
+        <Dialog.Portal>
+          <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setRenamingSectionName(null)} />
+          <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded border border-gray-200 p-6 w-96 shadow-lg z-50">
+            <Dialog.Title className="text-sm font-semibold mb-4">Rename section</Dialog.Title>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (renamingSectionName && renameValue.trim()) {
+                confirmRenameSection(renamingSectionName, renameValue.trim());
+                setRenamingSectionName(null);
+              }
+            }} className="space-y-4">
+              <input
+                ref={renameInputRef}
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                autoFocus
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-400"
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setRenamingSectionName(null)}
+                  className="px-3 py-1 text-sm border border-gray-200 rounded hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!renameValue.trim() || renameValue === renamingSectionName}
+                  className="px-3 py-1 text-sm bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
+                >
+                  Rename
+                </button>
+              </div>
+            </form>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Main panel */}
+      <div className="flex-1 flex flex-col min-w-0">
         {active ? (
           <>
             <div className="px-4 py-2 border-b border-gray-200 flex items-center justify-between">
-              <span className="text-xs text-gray-500">{active.path}</span>
+              <span className="text-xs text-gray-400">{active.path}</span>
               <div className="flex items-center gap-3">
-                {status && <span className="text-xs text-gray-600">{status}</span>}
+                {status && <span className="text-xs text-gray-500">{status}</span>}
                 <button
                   onClick={handleSave}
                   disabled={saving}
@@ -185,27 +479,55 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
                 >
                   {saving ? "Saving…" : "Save"}
                 </button>
-                {!active.isNew && active.path !== "content/home.md" && (
-                  <button
-                    onClick={handleDelete}
-                    disabled={deleting}
-                    className="text-sm px-3 py-1 border border-red-300 text-red-600 rounded hover:bg-red-50 disabled:opacity-50"
-                  >
-                    {deleting ? "Deleting…" : "Delete"}
-                  </button>
+                {canDelete && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setPopover(p => p?.type === "delete" ? null : { type: "delete", path: active.path })}
+                      disabled={deleting}
+                      className="text-sm px-3 py-1 border border-red-300 text-red-600 rounded hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {deleting ? "Deleting…" : "Delete"}
+                    </button>
+                    {popover?.type === "delete" && (
+                      <DeletePopover
+                        path={active.path}
+                        onConfirm={confirmDelete}
+                        onCancel={() => setPopover(null)}
+                      />
+                    )}
+                  </div>
                 )}
               </div>
             </div>
-            <textarea
-              value={active.content}
-              onChange={e => setActive(prev => prev ? { ...prev, content: e.target.value } : null)}
-              className="flex-1 p-4 font-mono text-sm resize-none focus:outline-none"
-              spellCheck={false}
-            />
+
+            <div className="px-4 py-2 border-b border-gray-200 bg-gray-50 flex items-center gap-3">
+              <label className="text-xs text-gray-500 font-semibold">Date:</label>
+              <input
+                type="text"
+                value={currentDate}
+                onChange={e => handleDateChange(e.target.value)}
+                placeholder="dd/mm/yyyy"
+                className="text-sm px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white font-mono"
+              />
+            </div>
+
+            <div className="flex-1 flex min-h-0">
+              <textarea
+                value={active.content}
+                onChange={e => setActive(prev => prev ? { ...prev, content: e.target.value } : null)}
+                className="w-1/2 p-4 font-mono text-sm resize-none focus:outline-none border-r border-gray-200"
+                spellCheck={false}
+              />
+              <div className="w-1/2 p-4 overflow-y-auto text-sm">
+                <MarkdownRenderer content={active.content} />
+              </div>
+            </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
-            Select a file to edit
+          <div className="flex-1 flex items-center justify-center text-sm">
+            {status
+              ? <span className="text-red-500">{status}</span>
+              : <span className="text-gray-400">Select a file to edit</span>}
           </div>
         )}
       </div>
