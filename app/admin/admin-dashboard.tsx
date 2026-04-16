@@ -10,7 +10,6 @@ type FileTree = { rootFiles: string[]; sections: Section[] };
 type ActiveFile = { path: string; content: string; isNew: boolean };
 type Popover =
   | { type: "delete"; path: string }
-  | { type: "new-file"; section: string }
   | { type: "new-section" }
   | { type: "rename-section"; name: string }
   | { type: "rename-file"; path: string };
@@ -67,96 +66,6 @@ function InputPopover({ label, placeholder, onConfirm, onCancel }: {
   );
 }
 
-function titleToSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^\w-]/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-function NewFilePopover({
-  label,
-  section,
-  existingSlugs,
-  onConfirm,
-  onCancel
-}: {
-  label: string;
-  section: string;
-  existingSlugs: string[];
-  onConfirm: (title: string, slug: string) => void;
-  onCancel: () => void;
-}) {
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [isSlugEdited, setIsSlugEdited] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const slugDuplicate = slug.trim() !== "" && existingSlugs.includes(slug);
-
-  useEffect(() => { inputRef.current?.focus(); }, []);
-
-  function handleTitleChange(newTitle: string) {
-    setTitle(newTitle);
-    if (!isSlugEdited) {
-      setSlug(titleToSlug(newTitle));
-    }
-  }
-
-  function handleSlugChange(newSlug: string) {
-    setSlug(newSlug);
-    setIsSlugEdited(true);
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmedTitle = title.trim();
-    const trimmedSlug = slug.trim();
-    if (trimmedTitle && trimmedSlug && !slugDuplicate) {
-      onConfirm(trimmedTitle, trimmedSlug);
-    }
-  }
-
-  return (
-    <div className="absolute left-0 top-full mt-1 z-10 border border-gray-200 rounded bg-white shadow-sm p-3 w-64 space-y-2">
-      <p className="text-xs text-gray-400 uppercase tracking-wide">{label}</p>
-      <form onSubmit={handleSubmit} className="space-y-2">
-        <input
-          ref={inputRef}
-          value={title}
-          onChange={e => handleTitleChange(e.target.value)}
-          placeholder="Page title"
-          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-gray-400"
-        />
-        <div className="flex items-center gap-2">
-          <input
-            value={slug}
-            onChange={e => handleSlugChange(e.target.value)}
-            placeholder="slug"
-            className={`flex-1 border rounded px-2 py-1 text-sm focus:outline-none ${
-              slugDuplicate ? "border-red-300 bg-red-50" : "border-gray-200 focus:border-gray-400"
-            }`}
-          />
-          {slugDuplicate && <span className="text-xs text-red-600">exists</span>}
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={!title.trim() || !slug.trim() || slugDuplicate}
-            className="text-xs px-2 py-1 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-40"
-          >
-            Create
-          </button>
-          <button type="button" onClick={onCancel} className="text-xs px-2 py-1 border border-gray-200 rounded hover:bg-gray-50">
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
 
 export function AdminDashboard({ initialPath }: { initialPath?: string }) {
   const [fileTree, setFileTree] = useState<FileTree>({ rootFiles: [], sections: [] });
@@ -169,11 +78,40 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
   const [titleCache, setTitleCache] = useState<{ [path: string]: string }>({});
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingSlug, setEditingSlug] = useState("");
 
   function getTitleFromContent(content: string): string {
     const pattern = /^Title:\s*(.+)$/m;
     const match = content.match(pattern);
-    return match ? match[1].toLowerCase() : "";
+    return match ? match[1] : "";
+  }
+
+  function getSlugFromContent(content: string): string {
+    const pattern = /^Slug:\s*(.+)$/m;
+    const match = content.match(pattern);
+    return match ? match[1] : "";
+  }
+
+  function getMarkdownBodyFromContent(content: string): string {
+    // Remove the title heading and metadata lines, keep only the markdown body
+    return content
+      .replace(/^#\s+.+\n+/, "") // Remove title heading
+      .replace(/^Title:\s*.+\n/m, "") // Remove Title line
+      .replace(/^Slug:\s*.+\n/m, "") // Remove Slug line
+      .replace(/^Created At:\s*.+\n/m, "") // Remove Created At line
+      .replace(/^Updated At:\s*.+\n/m, "") // Remove Updated At line
+      .replace(/^\n+/, ""); // Remove leading blank lines
+  }
+
+  function reconstructContent(
+    title: string,
+    slug: string,
+    createdAt: string,
+    updatedAt: string,
+    body: string
+  ): string {
+    return `# ${title}\n\nTitle: ${title}\nSlug: ${slug}\nCreated At: ${createdAt}\nUpdated At: ${updatedAt}\n\n${body}`;
   }
 
   async function extractDate(content: string, type: "created" | "updated" = "updated"): Promise<Date | null> {
@@ -267,7 +205,10 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     const res = await fetch(`/api/admin/files?path=${encodeURIComponent(path)}`);
     const data = await res.json();
     if (res.ok) {
-      setActive({ path, content: data.content, isNew: false });
+      const content = data.content;
+      setActive({ path, content, isNew: false });
+      setEditingTitle(getTitleFromContent(content));
+      setEditingSlug(getSlugFromContent(content));
       setStatus("");
       setPopover(null);
     } else {
@@ -282,24 +223,32 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     setSaving(true);
     setStatus("");
 
-    let contentToSave = active.content;
     const today = new Date();
     const dateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
 
-    // For new files, add both Created At and Updated At
+    let createdAtDate = getDateFromContent(active.content, "created");
+    let updatedAtDate = getDateFromContent(active.content, "updated");
+
+    // For new files, set both Created At and Updated At
     if (active.isNew) {
-      const createdAt = getDateFromContent(contentToSave, "created");
-      if (!createdAt) {
-        contentToSave = updateDateInContent(contentToSave, dateStr, "created");
-      }
-      const updatedAt = getDateFromContent(contentToSave, "updated");
-      if (!updatedAt) {
-        contentToSave = updateDateInContent(contentToSave, dateStr, "updated");
-      }
+      if (!createdAtDate) createdAtDate = dateStr;
+      if (!updatedAtDate) updatedAtDate = dateStr;
     } else {
       // For existing files, always update the Updated At date to today
-      contentToSave = updateDateInContent(contentToSave, dateStr, "updated");
+      updatedAtDate = dateStr;
     }
+
+    // Get the body content (without metadata)
+    const bodyContent = getMarkdownBodyFromContent(active.content);
+
+    // Reconstruct content with updated metadata
+    const contentToSave = reconstructContent(
+      editingTitle,
+      editingSlug,
+      createdAtDate,
+      updatedAtDate,
+      bodyContent
+    );
 
     const res = await fetch("/api/admin/files", {
       method: "PUT",
@@ -336,12 +285,12 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     setDeleting(false);
   }
 
-  function confirmNewFile(title: string, slug: string, section: string) {
-    const path = `content/${section}/${slug}.md`;
-    const today = new Date();
-    const dateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
-    const content = `# ${title}\n\nTitle: ${title}\nSlug: ${slug}\nCreated At: ${dateStr}\nUpdated At: ${dateStr}\n\n`;
+  function confirmNewFile(section: string) {
+    const path = `content/${section}/new-file.md`;
+    const content = `# \n\nTitle: \nSlug: \nCreated At: \nUpdated At: \n\n`;
     setActive({ path, content, isNew: true });
+    setEditingTitle("");
+    setEditingSlug("");
     setStatus("");
     setPopover(null);
   }
@@ -456,6 +405,14 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     }
   }
 
+  function handleTitleChange(newTitle: string) {
+    setEditingTitle(newTitle);
+  }
+
+  function handleSlugChange(newSlug: string) {
+    setEditingSlug(newSlug);
+  }
+
   const canDelete = active && !active.isNew;
   const createdAtDate = active ? getDateFromContent(active.content, "created") : "";
   const updatedAtDate = active ? getDateFromContent(active.content, "updated") : "";
@@ -539,23 +496,12 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
                   </div>
                 );
               })}
-              <div className="relative">
-                <button
-                  onClick={() => setPopover(p => p?.type === "new-file" && p.section === section.name ? null : { type: "new-file", section: section.name })}
-                  className="text-sm text-gray-400 hover:text-gray-700"
-                >
-                  + new
-                </button>
-                {popover?.type === "new-file" && popover.section === section.name && (
-                  <NewFilePopover
-                    label={`New in ${section.name}/`}
-                    section={section.name}
-                    existingSlugs={section.files.map(f => f.split("/").pop()?.replace(/\.md$/, "") || "")}
-                    onConfirm={(title, slug) => confirmNewFile(title, slug, section.name)}
-                    onCancel={() => setPopover(null)}
-                  />
-                )}
-              </div>
+              <button
+                onClick={() => confirmNewFile(section.name)}
+                className="text-sm text-gray-400 hover:text-gray-700"
+              >
+                + new
+              </button>
             </div>
           </div>
         ))}
@@ -659,29 +605,54 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
               </div>
             </div>
 
-            <div className="px-4 py-2 border-b border-gray-200 bg-gray-50 flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500 font-semibold">Created At:</label>
-                <span className="text-sm px-2 py-1 bg-gray-100 rounded font-mono text-gray-600">{createdAtDate || "—"}</span>
+            <div className="px-4 py-2 border-b border-gray-200 bg-gray-50 space-y-2">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500 font-semibold">Title:</label>
+                  <input
+                    type="text"
+                    value={editingTitle}
+                    onChange={e => handleTitleChange(e.target.value)}
+                    placeholder="Page title"
+                    className="text-sm px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500 font-semibold">Slug:</label>
+                  <input
+                    type="text"
+                    value={editingSlug}
+                    onChange={e => handleSlugChange(e.target.value)}
+                    placeholder="slug"
+                    className="text-sm px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white font-mono"
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500 font-semibold">Updated At:</label>
-                <input
-                  type="text"
-                  value={updatedAtDate}
-                  onChange={e => handleUpdatedAtChange(e.target.value)}
-                  placeholder="dd/mm/yyyy"
-                  className="text-sm px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white font-mono"
-                />
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500 font-semibold">Created At:</label>
+                  <span className="text-sm px-2 py-1 bg-gray-100 rounded font-mono text-gray-600">{createdAtDate || "—"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500 font-semibold">Updated At:</label>
+                  <input
+                    type="text"
+                    value={updatedAtDate}
+                    onChange={e => handleUpdatedAtChange(e.target.value)}
+                    placeholder="dd/mm/yyyy"
+                    className="text-sm px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white font-mono"
+                  />
+                </div>
               </div>
             </div>
 
             <div className="flex-1 flex min-h-0">
               <textarea
-                value={active.content}
+                value={getMarkdownBodyFromContent(active.content)}
                 onChange={e => setActive(prev => prev ? { ...prev, content: e.target.value } : null)}
                 className="w-1/2 p-4 font-mono text-sm resize-none focus:outline-none border-r border-gray-200"
                 spellCheck={false}
+                placeholder="Write your markdown here..."
               />
               <div className="w-1/2 p-4 overflow-y-auto text-sm">
                 <MarkdownRenderer content={active.content} />
