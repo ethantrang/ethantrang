@@ -10,17 +10,17 @@ _Ask:_ If you're cracked at growth/marketing (mobile, saas), I'd love to talk to
 
 _Offer:_ I'm technical, I'll build whatever is needed
 
-<PageItem title="stuff i do for money" path="/work/" />
+[stuff i do for money](/work/)
 
-<PageItem title="stuff i write about" path="/writings/" />
+[stuff i write about](/writings/)
 
 **Social**
 
-<LinkItem title="GitHub" url="https://github.com/ethantrang" />
+[GitHub](https://github.com/ethantrang)
 
-<LinkItem title="LinkedIn" url="https://www.linkedin.com/in/ethan-trang/" />
+[LinkedIn](https://www.linkedin.com/in/ethan-trang/)
 
-<LinkItem title="X" url="https://x.com/ethantrangg" />
+[X](https://x.com/ethantrangg)
 
 ---
 

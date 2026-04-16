@@ -15,12 +15,11 @@ import { useEffect, useState } from "react";
 type ContentItem = {
   slug: string;
   title: string;
-  category: 'work' | 'random' | 'writings' | 'social';
+  category: 'work' | 'writings' | 'social';
   iconType?: 'image' | 'gradient' | 'svg';
   icon?: string;
   gradientColors?: string;
   externalUrl?: string;
-  role?: string;
 };
 
 export function AutoBreadcrumb() {
@@ -69,7 +68,7 @@ export function AutoBreadcrumb() {
 
   // If we're on a specific page (e.g., /work/inflect-labs)
   if (segments.length === 2) {
-    const category = segments[0] as "work" | "random" | "writings" | "social";
+    const category = segments[0] as "work" | "writings" | "social";
     const slug = segments[1];
     const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
     const item = contentItems.find(
