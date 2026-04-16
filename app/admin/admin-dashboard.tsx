@@ -67,6 +67,97 @@ function InputPopover({ label, placeholder, onConfirm, onCancel }: {
   );
 }
 
+function titleToSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function NewFilePopover({
+  label,
+  section,
+  existingSlugs,
+  onConfirm,
+  onCancel
+}: {
+  label: string;
+  section: string;
+  existingSlugs: string[];
+  onConfirm: (title: string, slug: string) => void;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
+  const [isSlugEdited, setIsSlugEdited] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const slugDuplicate = slug.trim() !== "" && existingSlugs.includes(slug);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  function handleTitleChange(newTitle: string) {
+    setTitle(newTitle);
+    if (!isSlugEdited) {
+      setSlug(titleToSlug(newTitle));
+    }
+  }
+
+  function handleSlugChange(newSlug: string) {
+    setSlug(newSlug);
+    setIsSlugEdited(true);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmedTitle = title.trim();
+    const trimmedSlug = slug.trim();
+    if (trimmedTitle && trimmedSlug && !slugDuplicate) {
+      onConfirm(trimmedTitle, trimmedSlug);
+    }
+  }
+
+  return (
+    <div className="absolute left-0 top-full mt-1 z-10 border border-gray-200 rounded bg-white shadow-sm p-3 w-64 space-y-2">
+      <p className="text-xs text-gray-400 uppercase tracking-wide">{label}</p>
+      <form onSubmit={handleSubmit} className="space-y-2">
+        <input
+          ref={inputRef}
+          value={title}
+          onChange={e => handleTitleChange(e.target.value)}
+          placeholder="Page title"
+          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-gray-400"
+        />
+        <div className="flex items-center gap-2">
+          <input
+            value={slug}
+            onChange={e => handleSlugChange(e.target.value)}
+            placeholder="slug"
+            className={`flex-1 border rounded px-2 py-1 text-sm focus:outline-none ${
+              slugDuplicate ? "border-red-300 bg-red-50" : "border-gray-200 focus:border-gray-400"
+            }`}
+          />
+          {slugDuplicate && <span className="text-xs text-red-600">exists</span>}
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={!title.trim() || !slug.trim() || slugDuplicate}
+            className="text-xs px-2 py-1 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-40"
+          >
+            Create
+          </button>
+          <button type="button" onClick={onCancel} className="text-xs px-2 py-1 border border-gray-200 rounded hover:bg-gray-50">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export function AdminDashboard({ initialPath }: { initialPath?: string }) {
   const [fileTree, setFileTree] = useState<FileTree>({ rootFiles: [], sections: [] });
   const [active, setActive] = useState<ActiveFile | null>(null);
@@ -245,11 +336,11 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     setDeleting(false);
   }
 
-  function confirmNewFile(slug: string, section: string) {
+  function confirmNewFile(title: string, slug: string, section: string) {
     const path = `content/${section}/${slug}.md`;
     const today = new Date();
     const dateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
-    const content = `# ${slug}\n\nTitle: ${slug}\nSlug: ${slug}\nCreated At: ${dateStr}\nUpdated At: ${dateStr}\n\n`;
+    const content = `# ${title}\n\nTitle: ${title}\nSlug: ${slug}\nCreated At: ${dateStr}\nUpdated At: ${dateStr}\n\n`;
     setActive({ path, content, isNew: true });
     setStatus("");
     setPopover(null);
@@ -456,10 +547,11 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
                   + new
                 </button>
                 {popover?.type === "new-file" && popover.section === section.name && (
-                  <InputPopover
+                  <NewFilePopover
                     label={`New in ${section.name}/`}
-                    placeholder="slug-here"
-                    onConfirm={slug => confirmNewFile(slug, section.name)}
+                    section={section.name}
+                    existingSlugs={section.files.map(f => f.split("/").pop()?.replace(/\.md$/, "") || "")}
+                    onConfirm={(title, slug) => confirmNewFile(title, slug, section.name)}
                     onCancel={() => setPopover(null)}
                   />
                 )}
