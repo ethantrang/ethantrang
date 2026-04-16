@@ -38,3 +38,6 @@ next-env.d.ts
 # utils.sh
 deploy.sh
 open.sh
+
+# worktrees
+.worktrees/
