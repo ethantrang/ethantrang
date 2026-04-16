@@ -1,5 +1,7 @@
 # How to get what you want
 
+Title: How to get what you want
+Slug: how-to-get-what-you-want
 Created At: 04/06/2025
 Updated At: 16/04/2026
 

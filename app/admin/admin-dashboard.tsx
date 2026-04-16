@@ -77,6 +77,13 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
   const [renamingSectionName, setRenamingSectionName] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const [titleCache, setTitleCache] = useState<{ [path: string]: string }>({});
+
+  function getTitleFromContent(content: string): string {
+    const pattern = /^Title:\s*(.+)$/m;
+    const match = content.match(pattern);
+    return match ? match[1].toLowerCase() : "";
+  }
 
   async function extractDate(content: string, type: "created" | "updated" = "updated"): Promise<Date | null> {
     const pattern = type === "created" ? /^Created At:\s*(\d{2}\/\d{2}\/\d{4})$/m : /^Updated At:\s*(\d{2}\/\d{2}\/\d{4})$/m;
@@ -96,6 +103,15 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
       .filter(i => i.type === "file" && i.name.endsWith(".md"))
       .map(i => `content/${i.name}`);
 
+    // Extract titles for root files
+    const newTitleCache: { [path: string]: string } = { ...titleCache };
+    for (const path of rootFiles) {
+      const fileRes = await fetch(`/api/admin/files?path=${encodeURIComponent(path)}`);
+      const fileData = fileRes.ok ? await fileRes.json() : { content: "" };
+      const title = getTitleFromContent(fileData.content || "");
+      if (title) newTitleCache[path] = title;
+    }
+
     const sections = await Promise.all(
       items
         .filter(i => i.type === "directory")
@@ -110,6 +126,8 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
               const fileRes = await fetch(`/api/admin/files?path=${encodeURIComponent(path)}`);
               const fileData = fileRes.ok ? await fileRes.json() : { content: "" };
               const updatedDate = await extractDate(fileData.content || "", "updated");
+              const title = getTitleFromContent(fileData.content || "");
+              if (title) newTitleCache[path] = title;
               return { path, date: updatedDate };
             })
           ).then(filesWithDates =>
@@ -132,6 +150,7 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
         })
     );
 
+    setTitleCache(newTitleCache);
     setFileTree({ rootFiles, sections });
   }
 
@@ -296,7 +315,8 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
   }
 
   function displayName(path: string) {
-    return path.split("/").pop()?.replace(/\.md$/, "") ?? path;
+    // Return cached title if available, otherwise fallback to slug
+    return titleCache[path] || (path.split("/").pop()?.replace(/\.md$/, "") ?? path);
   }
 
   function getDateFromContent(content: string, type: "created" | "updated" = "updated"): string {

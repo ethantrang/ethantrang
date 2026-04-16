@@ -1,5 +1,7 @@
 # So I'm starting over
 
+Title: So I'm starting over
+Slug: so-im-starting-over
 Created At: 24/01/2025
 Updated At: 16/04/2026
 

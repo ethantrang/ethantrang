@@ -1,10 +1,16 @@
-import { readdirSync, statSync } from "fs";
+import { readdirSync, statSync, readFileSync } from "fs";
 import { join } from "path";
 import { Sidebar } from "@/components/sidebar";
 import { ResizableDivider } from "@/components/resizable-divider";
 
 type SectionItem = { name: string; slug: string };
 type Section = { name: string; items: SectionItem[] };
+
+function getTitleFromContent(content: string): string {
+  const pattern = /^Title:\s*(.+)$/m;
+  const match = content.match(pattern);
+  return match ? match[1].toLowerCase() : "";
+}
 
 function getContentTree(): Section[] {
   const contentDir = join(process.cwd(), "content");
@@ -16,7 +22,13 @@ function getContentTree(): Section[] {
       const items = readdirSync(abs)
         .filter(f => f.endsWith(".md"))
         .sort()
-        .map(f => ({ name: f.replace(/\.md$/, ""), slug: f.replace(/\.md$/, "") }));
+        .map(f => {
+          const slug = f.replace(/\.md$/, "");
+          const filePath = join(abs, f);
+          const content = readFileSync(filePath, "utf-8");
+          const title = getTitleFromContent(content);
+          return { name: title || slug, slug };
+        });
       sections.push({ name: entry, items });
     }
   }

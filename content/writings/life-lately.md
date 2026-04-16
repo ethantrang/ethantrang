@@ -1,5 +1,7 @@
 # life lately
 
+Title: life lately
+Slug: life-lately
 Created At: 29/10/2025
 Updated At: 16/04/2026
 

@@ -1,5 +1,7 @@
 # How I picked my cofounder
 
+Title: How I picked my cofounder
+Slug: how-i-picked-my-cofounder
 Created At: 28/09/2025
 Updated At: 16/04/2026
 

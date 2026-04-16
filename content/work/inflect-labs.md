@@ -1,5 +1,7 @@
 # Inflect Labs
 
+Title: Inflect Labs
+Slug: inflect-labs
 Created At: 01/04/2025
 Updated At: 16/04/2026
 

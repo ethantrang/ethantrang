@@ -1,5 +1,7 @@
 # My first $10k month
 
+Title: My first $10k month
+Slug: my-first-10k-month
 Created At: 20/04/2025
 Updated At: 16/04/2026
 

@@ -1,5 +1,7 @@
 # Ethan Trang
 
+Title: Home
+Slug: home
 Created At: 16/04/2026
 Updated At: 16/04/2026
 
