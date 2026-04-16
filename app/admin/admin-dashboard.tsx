@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { ResizableDivider } from "@/components/resizable-divider";
-import * as Dialog from "@radix-ui/react-dialog";
 
 type Section = { name: string; files: string[] };
 type FileTree = { rootFiles: string[]; sections: Section[] };
@@ -15,12 +14,19 @@ type Popover =
   | { type: "rename-file"; path: string };
 
 function DeletePopover({ path, onConfirm, onCancel }: { path: string; onConfirm: () => void; onCancel: () => void }) {
+  const handleDelete = () => {
+    const fileName = path.split("/").pop();
+    if (confirm(`Are you sure you want to delete "${fileName}"? This cannot be undone.`)) {
+      onConfirm();
+    }
+  };
+
   return (
-    <div className="absolute right-0 top-full mt-1 z-10 border border-gray-200 rounded bg-white shadow-sm p-3 w-56 space-y-2">
-      <p className="text-xs text-gray-500">Delete <span className="underline text-gray-800">{path.split("/").pop()}</span>?</p>
+    <div className="absolute right-0 top-full mt-1 z-10 border border-border rounded bg-card shadow-sm p-3 w-56 space-y-2">
+      <p className="text-xs text-muted-foreground">Delete <span className="underline text-foreground">{path.split("/").pop()}</span>?</p>
       <div className="flex gap-2">
-        <button onClick={onConfirm} className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
-        <button onClick={onCancel} className="text-xs px-2 py-1 border border-gray-200 rounded hover:bg-gray-50">Cancel</button>
+        <button onClick={handleDelete} className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+        <button onClick={onCancel} className="text-xs px-2 py-1 border border-border rounded hover:bg-muted">Cancel</button>
       </div>
     </div>
   );
@@ -43,21 +49,21 @@ function InputPopover({ label, placeholder, onConfirm, onCancel }: {
   }
 
   return (
-    <div className="absolute left-0 top-full mt-1 z-10 border border-gray-200 rounded bg-white shadow-sm p-3 w-52 space-y-2">
-      <p className="text-xs text-gray-400 uppercase tracking-wide">{label}</p>
+    <div className="absolute left-0 top-full mt-1 z-10 border border-border rounded bg-card shadow-sm p-3 w-52 space-y-2">
+      <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
       <form onSubmit={handleSubmit} className="space-y-2">
         <input
           ref={inputRef}
           value={value}
           onChange={e => setValue(e.target.value)}
           placeholder={placeholder}
-          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-gray-400"
+          className="w-full border border-input rounded px-2 py-1 text-sm focus:outline-none focus:border-ring bg-background text-foreground"
         />
         <div className="flex gap-2">
-          <button type="submit" disabled={!value.trim()} className="text-xs px-2 py-1 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-40">
+          <button type="submit" disabled={!value.trim()} className="text-xs px-2 py-1 bg-black text-white rounded hover:bg-gray-800 dark:hover:bg-gray-700 disabled:opacity-40">
             Create
           </button>
-          <button type="button" onClick={onCancel} className="text-xs px-2 py-1 border border-gray-200 rounded hover:bg-gray-50">
+          <button type="button" onClick={onCancel} className="text-xs px-2 py-1 border border-border rounded hover:bg-muted">
             Cancel
           </button>
         </div>
@@ -70,35 +76,25 @@ function InputPopover({ label, placeholder, onConfirm, onCancel }: {
 export function AdminDashboard({ initialPath }: { initialPath?: string }) {
   const [fileTree, setFileTree] = useState<FileTree>({ rootFiles: [], sections: [] });
   const [active, setActive] = useState<ActiveFile | null>(null);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [status, setStatus] = useState("");
   const [popover, setPopover] = useState<Popover | null>(null);
-  const [renamingSectionName, setRenamingSectionName] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-  const renameInputRef = useRef<HTMLInputElement>(null);
+  const [sectionNameEdit, setSectionNameEdit] = useState<string>("");
   const [titleCache, setTitleCache] = useState<{ [path: string]: string }>({});
   const [editingTitle, setEditingTitle] = useState("");
-  const [editingSlug, setEditingSlug] = useState("");
 
   function getTitleFromContent(content: string): string {
-    const pattern = /^Title:\s*(.+)$/m;
-    const match = content.match(pattern);
-    return match ? match[1] : "";
-  }
-
-  function getSlugFromContent(content: string): string {
-    const pattern = /^Slug:\s*(.+)$/m;
+    const pattern = /^#\s+(.+)$/m;
     const match = content.match(pattern);
     return match ? match[1] : "";
   }
 
   function getMarkdownBodyFromContent(content: string): string {
-    // Remove the title heading and metadata lines, keep only the markdown body
+    // Remove title and metadata lines, keep only the markdown body
     return content
-      .replace(/^#\s+.+\n+/, "") // Remove title heading
-      .replace(/^Title:\s*.+\n/m, "") // Remove Title line
-      .replace(/^Slug:\s*.+\n/m, "") // Remove Slug line
+      .replace(/^#\s+.+\n*/m, "") // Remove title heading
       .replace(/^Created At:\s*.+\n/m, "") // Remove Created At line
       .replace(/^Updated At:\s*.+\n/m, "") // Remove Updated At line
       .replace(/^\n+/, ""); // Remove leading blank lines
@@ -106,12 +102,20 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
 
   function reconstructContent(
     title: string,
-    slug: string,
     createdAt: string,
     updatedAt: string,
     body: string
   ): string {
-    return `# ${title}\n\nTitle: ${title}\nSlug: ${slug}\nCreated At: ${createdAt}\nUpdated At: ${updatedAt}\n\n${body}`;
+    // body includes the heading, so we need to update it with the current title
+    // Replace the heading line with the new title
+    let content = body.replace(/^#\s+.+$/m, `# ${title}`);
+
+    // If no heading was found, prepend one
+    if (content === body && !body.startsWith("#")) {
+      content = `# ${title}\n\n${body}`;
+    }
+
+    return `${content}\n\nCreated At: ${createdAt}\nUpdated At: ${updatedAt}`;
   }
 
   async function extractDate(content: string, type: "created" | "updated" = "updated"): Promise<Date | null> {
@@ -208,7 +212,6 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
       const content = data.content;
       setActive({ path, content, isNew: false });
       setEditingTitle(getTitleFromContent(content));
-      setEditingSlug(getSlugFromContent(content));
       setStatus("");
       setPopover(null);
     } else {
@@ -238,13 +241,12 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
       updatedAtDate = dateStr;
     }
 
-    // Get the body content (without metadata)
+    // Get the body content (includes heading but not metadata)
     const bodyContent = getMarkdownBodyFromContent(active.content);
 
     // Reconstruct content with updated metadata
     const contentToSave = reconstructContent(
       editingTitle,
-      editingSlug,
       createdAtDate,
       updatedAtDate,
       bodyContent
@@ -287,10 +289,9 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
 
   function confirmNewFile(section: string) {
     const path = `content/${section}/new-file.md`;
-    const content = `# \n\nTitle: \nSlug: \nCreated At: \nUpdated At: \n\n`;
+    const content = `# \n\nCreated At: \nUpdated At: \n\n`;
     setActive({ path, content, isNew: true });
     setEditingTitle("");
-    setEditingSlug("");
     setStatus("");
     setPopover(null);
   }
@@ -313,6 +314,27 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
       setStatus(`Error: ${data.error}`);
     }
     setPopover(null);
+  }
+
+  async function confirmDeleteSection(sectionName: string) {
+    if (confirm(`Are you sure you want to delete the "${sectionName}" section and all its files? This cannot be undone.`)) {
+      const res = await fetch("/api/admin/files", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: `content/${sectionName}` }),
+      });
+      if (res.ok) {
+        // Clear active file if it was in the deleted section
+        if (active?.path.startsWith(`content/${sectionName}/`)) {
+          setActive(null);
+        }
+        setActiveSection(null);
+        await loadTree();
+      } else {
+        const data = await res.json();
+        setStatus(`Error: ${data.error}`);
+      }
+    }
   }
 
   async function confirmRenameFile(oldPath: string, newSlug: string) {
@@ -355,14 +377,35 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
   }
 
   function displayName(path: string) {
-    // Return cached title if available, otherwise fallback to slug
-    return titleCache[path] || (path.split("/").pop()?.replace(/\.md$/, "") ?? path);
+    // Return cached title if available, otherwise fallback to slug - all lowercase
+    const name = titleCache[path] || (path.split("/").pop()?.replace(/\.md$/, "") ?? path);
+    return name.toLowerCase();
   }
 
   function getDateFromContent(content: string, type: "created" | "updated" = "updated"): string {
     const pattern = type === "created" ? /^Created At:\s*(\d{2}\/\d{2}\/\d{4})$/m : /^Updated At:\s*(\d{2}\/\d{2}\/\d{4})$/m;
     const match = content.match(pattern);
     return match ? match[1] : "";
+  }
+
+  // Convert dd/mm/yyyy to YYYY-MM-DD for HTML5 date input
+  function formatDateForInput(dateStr: string): string {
+    if (!dateStr) return "";
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return "";
+  }
+
+  // Convert YYYY-MM-DD from HTML5 date input to dd/mm/yyyy for markdown
+  function formatDateForMarkdown(dateStr: string): string {
+    if (!dateStr) return "";
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return "";
   }
 
   function updateDateInContent(content: string, newDate: string, type: "created" | "updated" = "updated"): string {
@@ -394,12 +437,23 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     return `Created At: ${newDate}\nUpdated At: ${newDate}\n\n${content}`;
   }
 
-  function handleUpdatedAtChange(newDate: string) {
-    if (active && newDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-      // Only update if it's a valid dd/mm/yyyy format
+  function handleCreatedAtChange(dateInputValue: string) {
+    if (active && dateInputValue) {
+      const markdownDate = formatDateForMarkdown(dateInputValue);
+      const currentDateInContent = getDateFromContent(active.content, "created");
+      if (markdownDate !== currentDateInContent) {
+        const updated = updateDateInContent(active.content, markdownDate, "created");
+        setActive({ ...active, content: updated });
+      }
+    }
+  }
+
+  function handleUpdatedAtChange(dateInputValue: string) {
+    if (active && dateInputValue) {
+      const markdownDate = formatDateForMarkdown(dateInputValue);
       const currentDateInContent = getDateFromContent(active.content, "updated");
-      if (newDate !== currentDateInContent) {
-        const updated = updateDateInContent(active.content, newDate, "updated");
+      if (markdownDate !== currentDateInContent) {
+        const updated = updateDateInContent(active.content, markdownDate, "updated");
         setActive({ ...active, content: updated });
       }
     }
@@ -409,96 +463,57 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     setEditingTitle(newTitle);
   }
 
-  function handleSlugChange(newSlug: string) {
-    setEditingSlug(newSlug);
-  }
-
   const canDelete = active && !active.isNew;
   const createdAtDate = active ? getDateFromContent(active.content, "created") : "";
   const updatedAtDate = active ? getDateFromContent(active.content, "updated") : "";
 
   return (
-    <div className="flex gap-0 min-h-[calc(100vh-2rem)] border border-gray-200 rounded">
+    <div className="flex gap-0 min-h-[calc(100vh-2rem)] border border-border rounded">
       {/* Sidebar */}
       <aside className="w-48 md:w-64 flex-shrink-0 p-4 space-y-4 overflow-y-auto">
         {/* Root files (home.md etc) */}
         {fileTree.rootFiles.map(path => {
           const isActive = active?.path === path;
           return (
-            <div key={path} className="flex items-center gap-1 group">
-              <button
-                onClick={() => loadFile(path)}
-                className={`text-sm flex-1 text-left ${isActive ? "underline" : "hover:underline"}`}
-              >
-                {displayName(path)}
-              </button>
-              <button
-                onClick={() => setPopover(p => p?.type === "rename-file" && p.path === path ? null : { type: "rename-file", path })}
-                className="text-xs text-gray-300 hover:text-gray-500 leading-none opacity-0 group-hover:opacity-100"
-                title="Rename file"
-              >
-                ✎
-              </button>
-              {popover?.type === "rename-file" && popover.path === path && (
-                <InputPopover
-                  label="Rename file"
-                  placeholder={displayName(path)}
-                  onConfirm={newSlug => confirmRenameFile(path, newSlug)}
-                  onCancel={() => setPopover(null)}
-                />
-              )}
-            </div>
+            <button
+              key={path}
+              onClick={() => loadFile(path)}
+              className={`text-sm block ${isActive ? "underline" : "hover:underline"}`}
+            >
+              {displayName(path)}
+            </button>
           );
         })}
 
         {/* Sections */}
         {fileTree.sections.map(section => (
           <div key={section.name}>
-            <div className="relative flex items-center gap-1 mb-1 group">
-              <p className="text-sm flex-1">{section.name}</p>
-              <button
-                onClick={() => {
-                  setRenamingSectionName(section.name);
-                  setRenameValue(section.name);
-                }}
-                className="text-xs text-gray-300 hover:text-gray-500 leading-none opacity-0 group-hover:opacity-100"
-                title="Rename section"
-              >
-                ✎
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                setActive(null);
+                setActiveSection(section.name);
+                setSectionNameEdit(section.name);
+              }}
+              className="text-sm mb-1 block hover:underline w-full text-left"
+            >
+              {section.name}
+            </button>
             <div className="space-y-1 pl-2">
               {section.files.map(path => {
                 const isActive = active?.path === path;
                 return (
-                  <div key={path} className="flex items-center gap-1 group">
-                    <button
-                      onClick={() => loadFile(path)}
-                      className={`text-sm flex-1 text-left ${isActive ? "underline" : "hover:underline"}`}
-                    >
-                      {displayName(path)}
-                    </button>
-                    <button
-                      onClick={() => setPopover(p => p?.type === "rename-file" && p.path === path ? null : { type: "rename-file", path })}
-                      className="text-xs text-gray-300 hover:text-gray-500 leading-none opacity-0 group-hover:opacity-100"
-                      title="Rename file"
-                    >
-                      ✎
-                    </button>
-                    {popover?.type === "rename-file" && popover.path === path && (
-                      <InputPopover
-                        label="Rename file"
-                        placeholder={displayName(path)}
-                        onConfirm={newSlug => confirmRenameFile(path, newSlug)}
-                        onCancel={() => setPopover(null)}
-                      />
-                    )}
-                  </div>
+                  <button
+                    key={path}
+                    onClick={() => loadFile(path)}
+                    className={`text-sm block ${isActive ? "underline" : "hover:underline"}`}
+                  >
+                    {displayName(path)}
+                  </button>
                 );
               })}
               <button
                 onClick={() => confirmNewFile(section.name)}
-                className="text-sm text-gray-400 hover:text-gray-700"
+                className="text-sm text-muted-foreground hover:text-foreground"
               >
                 + new
               </button>
@@ -510,7 +525,7 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
         <div className="relative">
           <button
             onClick={() => setPopover(p => p?.type === "new-section" ? null : { type: "new-section" })}
-            className="text-sm text-gray-400 hover:text-gray-700"
+            className="text-sm text-muted-foreground hover:text-foreground"
           >
             + section
           </button>
@@ -527,60 +542,66 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
 
       <ResizableDivider />
 
-      {/* Rename Section Dialog */}
-      <Dialog.Root open={renamingSectionName !== null} onOpenChange={(open) => !open && setRenamingSectionName(null)}>
-        <Dialog.Portal>
-          <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setRenamingSectionName(null)} />
-          <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded border border-gray-200 p-6 w-96 shadow-lg z-50">
-            <Dialog.Title className="text-sm font-semibold mb-4">Rename section</Dialog.Title>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              if (renamingSectionName && renameValue.trim()) {
-                confirmRenameSection(renamingSectionName, renameValue.trim());
-                setRenamingSectionName(null);
-              }
-            }} className="space-y-4">
-              <input
-                ref={renameInputRef}
-                type="text"
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                autoFocus
-                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-400"
-              />
-              <div className="flex gap-2 justify-end">
+      {/* Main panel */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {activeSection ? (
+          <>
+            <div className="px-4 py-2 border-b border-border flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Section: {activeSection}</span>
+              <div className="flex items-center gap-3">
+                {status && <span className="text-xs text-muted-foreground">{status}</span>}
                 <button
-                  type="button"
-                  onClick={() => setRenamingSectionName(null)}
-                  className="px-3 py-1 text-sm border border-gray-200 rounded hover:bg-gray-50"
+                  onClick={() => confirmDeleteSection(activeSection)}
+                  className="text-sm px-3 py-1 border border-red-300 text-red-600 rounded hover:bg-red-50 dark:hover:bg-red-950"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => setActiveSection(null)}
+                  className="text-sm px-3 py-1 border border-border rounded hover:bg-muted"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
-                  disabled={!renameValue.trim() || renameValue === renamingSectionName}
-                  className="px-3 py-1 text-sm bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
+                  onClick={() => {
+                    if (sectionNameEdit.trim() && sectionNameEdit !== activeSection) {
+                      confirmRenameSection(activeSection, sectionNameEdit.trim());
+                      setActiveSection(null);
+                    }
+                  }}
+                  disabled={!sectionNameEdit.trim() || sectionNameEdit === activeSection}
+                  className="text-sm px-3 py-1 bg-black text-white rounded hover:bg-gray-800 dark:hover:bg-gray-700 disabled:opacity-50"
                 >
-                  Rename
+                  Save
                 </button>
               </div>
-            </form>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
-
-      {/* Main panel */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {active ? (
+            </div>
+            <div className="px-4 py-4 border-b border-border bg-card">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-muted-foreground font-semibold">Section Name:</label>
+                <input
+                  type="text"
+                  value={sectionNameEdit}
+                  onChange={(e) => setSectionNameEdit(e.target.value)}
+                  className="text-sm px-2 py-1 border border-input rounded focus:outline-none focus:border-ring bg-background text-foreground flex-1 max-w-xs"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+              Edit section name and click Save to confirm
+            </div>
+          </>
+        ) : active ? (
           <>
-            <div className="px-4 py-2 border-b border-gray-200 flex items-center justify-between">
-              <span className="text-xs text-gray-400">{active.path}</span>
+            <div className="px-4 py-2 border-b border-border flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">{active.path}</span>
               <div className="flex items-center gap-3">
-                {status && <span className="text-xs text-gray-500">{status}</span>}
+                {status && <span className="text-xs text-muted-foreground">{status}</span>}
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="text-sm px-3 py-1 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
+                  className="text-sm px-3 py-1 bg-black text-white rounded hover:bg-gray-800 dark:hover:bg-gray-700 disabled:opacity-50"
                 >
                   {saving ? "Saving…" : "Save"}
                 </button>
@@ -589,7 +610,7 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
                     <button
                       onClick={() => setPopover(p => p?.type === "delete" ? null : { type: "delete", path: active.path })}
                       disabled={deleting}
-                      className="text-sm px-3 py-1 border border-red-300 text-red-600 rounded hover:bg-red-50 disabled:opacity-50"
+                      className="text-sm px-3 py-1 border border-red-300 text-red-600 rounded hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50"
                     >
                       {deleting ? "Deleting…" : "Delete"}
                     </button>
@@ -605,42 +626,34 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
               </div>
             </div>
 
-            <div className="px-4 py-2 border-b border-gray-200 bg-gray-50 space-y-2">
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-500 font-semibold">Title:</label>
-                  <input
-                    type="text"
-                    value={editingTitle}
-                    onChange={e => handleTitleChange(e.target.value)}
-                    placeholder="Page title"
-                    className="text-sm px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-500 font-semibold">Slug:</label>
-                  <input
-                    type="text"
-                    value={editingSlug}
-                    onChange={e => handleSlugChange(e.target.value)}
-                    placeholder="slug"
-                    className="text-sm px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white font-mono"
-                  />
-                </div>
+            <div className="px-4 py-2 border-b border-border bg-card space-y-2">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-muted-foreground font-semibold">Title:</label>
+                <input
+                  type="text"
+                  value={editingTitle}
+                  onChange={e => handleTitleChange(e.target.value)}
+                  placeholder="Page title"
+                  className="text-sm px-2 py-1 border border-input rounded focus:outline-none focus:border-ring bg-background text-foreground flex-1"
+                />
               </div>
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-500 font-semibold">Created At:</label>
-                  <span className="text-sm px-2 py-1 bg-gray-100 rounded font-mono text-gray-600">{createdAtDate || "—"}</span>
+                  <label className="text-xs text-muted-foreground font-semibold">Created At:</label>
+                  <input
+                    type="date"
+                    value={formatDateForInput(createdAtDate)}
+                    onChange={e => handleCreatedAtChange(e.target.value)}
+                    className="text-sm px-2 py-1 border border-input rounded focus:outline-none focus:border-ring bg-background text-foreground"
+                  />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-500 font-semibold">Updated At:</label>
+                  <label className="text-xs text-muted-foreground font-semibold">Updated At:</label>
                   <input
-                    type="text"
-                    value={updatedAtDate}
+                    type="date"
+                    value={formatDateForInput(updatedAtDate)}
                     onChange={e => handleUpdatedAtChange(e.target.value)}
-                    placeholder="dd/mm/yyyy"
-                    className="text-sm px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white font-mono"
+                    className="text-sm px-2 py-1 border border-input rounded focus:outline-none focus:border-ring bg-background text-foreground"
                   />
                 </div>
               </div>
@@ -650,7 +663,7 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
               <textarea
                 value={getMarkdownBodyFromContent(active.content)}
                 onChange={e => setActive(prev => prev ? { ...prev, content: e.target.value } : null)}
-                className="w-1/2 p-4 font-mono text-sm resize-none focus:outline-none border-r border-gray-200"
+                className="w-1/2 p-4 font-mono text-sm resize-none focus:outline-none border-r border-border bg-background text-foreground"
                 spellCheck={false}
                 placeholder="Write your markdown here..."
               />
@@ -663,7 +676,7 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
           <div className="flex-1 flex items-center justify-center text-sm">
             {status
               ? <span className="text-red-500">{status}</span>
-              : <span className="text-gray-400">Select a file to edit</span>}
+              : <span className="text-muted-foreground">Select a file to edit</span>}
           </div>
         )}
       </div>

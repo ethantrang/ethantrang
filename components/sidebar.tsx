@@ -10,17 +10,13 @@ export function Sidebar({ sections, showBorder = false }: { sections: Section[];
   const pathname = usePathname();
 
   return (
-    <aside className={`w-48 md:w-64 flex-shrink-0 p-4 space-y-4 ${showBorder ? 'border-r border-gray-200' : ''}`}>
-      <Link href="/" className={`text-sm block no-underline ${pathname === "/" ? "underline" : "hover:underline"}`}>
-        home
-      </Link>
-
+    <aside className={`w-48 md:w-64 flex-shrink-0 p-4 space-y-4 ${showBorder ? 'border-r border-border' : ''}`}>
       {sections.map(section => (
-        <div key={section.name}>
-          <p className="text-sm mb-1">{section.name}</p>
-          <div className="space-y-1 pl-2">
+        <div key={section.name || "root"}>
+          {section.name && <p className="text-sm mb-1">{section.name}</p>}
+          <div className={`space-y-1 ${section.name ? "pl-2" : ""}`}>
             {section.items.map(item => {
-              const href = `/${section.name}/${item.slug}`;
+              const href = section.name ? `/${section.name}/${item.slug}` : "/";
               const isActive = pathname === href;
               return (
                 <Link

@@ -121,4 +121,9 @@
   em {
     @apply italic;
   }
+
+  /* Mute metadata text (Created At, Updated At) */
+  main p:first-of-type {
+    @apply text-muted-foreground text-xs;
+  }
 }

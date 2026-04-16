@@ -46,8 +46,8 @@ export function ResizableDivider() {
     <div
       ref={dividerRef}
       onMouseDown={() => setIsDragging(true)}
-      className={`border-r border-gray-200 hover:border-gray-400 cursor-col-resize transition-colors ${
-        isDragging ? 'border-gray-400' : ''
+      className={`border-r border-border hover:border-foreground/30 cursor-col-resize transition-colors ${
+        isDragging ? 'border-foreground/30' : ''
       }`}
       style={{
         userSelect: isDragging ? 'none' : 'auto',
