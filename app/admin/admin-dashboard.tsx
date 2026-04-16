@@ -78,8 +78,9 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
 
-  async function extractDate(content: string): Promise<Date | null> {
-    const dateMatch = content.match(/^Date:\s*(\d{2}\/\d{2}\/\d{4})$/m);
+  async function extractDate(content: string, type: "created" | "updated" = "updated"): Promise<Date | null> {
+    const pattern = type === "created" ? /^Created At:\s*(\d{2}\/\d{2}\/\d{4})$/m : /^Updated At:\s*(\d{2}\/\d{2}\/\d{4})$/m;
+    const dateMatch = content.match(pattern);
     if (!dateMatch) return null;
     const [day, month, year] = dateMatch[1].split("/").map(Number);
     const date = new Date(year, month - 1, day);
@@ -103,13 +104,13 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
           const data = res.ok ? await res.json() : { items: [] };
           let files = (data.items ?? []).map((f: { name: string }) => `content/${dir.name}/${f.name}`);
 
-          // Sort files by date (newest first) if they have dates
+          // Sort files by updated date (newest first) if they have dates
           files = await Promise.all(
             files.map(async (path: string) => {
               const fileRes = await fetch(`/api/admin/files?path=${encodeURIComponent(path)}`);
               const fileData = fileRes.ok ? await fileRes.json() : { content: "" };
-              const date = await extractDate(fileData.content || "");
-              return { path, date };
+              const updatedDate = await extractDate(fileData.content || "", "updated");
+              return { path, date: updatedDate };
             })
           ).then(filesWithDates =>
             filesWithDates
@@ -171,15 +172,23 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     setSaving(true);
     setStatus("");
 
-    // Ensure content has a valid date - don't auto-update it
     let contentToSave = active.content;
-    const currentDateInContent = getDateFromContent(contentToSave);
+    const today = new Date();
+    const dateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
 
-    // If no date exists, add today's date only for new files
-    if (!currentDateInContent && active.isNew) {
-      const today = new Date();
-      const dateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
-      contentToSave = updateDateInContent(contentToSave, dateStr);
+    // For new files, add both Created At and Updated At
+    if (active.isNew) {
+      const createdAt = getDateFromContent(contentToSave, "created");
+      if (!createdAt) {
+        contentToSave = updateDateInContent(contentToSave, dateStr, "created");
+      }
+      const updatedAt = getDateFromContent(contentToSave, "updated");
+      if (!updatedAt) {
+        contentToSave = updateDateInContent(contentToSave, dateStr, "updated");
+      }
+    } else {
+      // For existing files, always update the Updated At date to today
+      contentToSave = updateDateInContent(contentToSave, dateStr, "updated");
     }
 
     const res = await fetch("/api/admin/files", {
@@ -221,7 +230,7 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     const path = `content/${section}/${slug}.md`;
     const today = new Date();
     const dateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
-    const content = `# ${slug}\n\nDate: ${dateStr}\n\n`;
+    const content = `# ${slug}\n\nCreated At: ${dateStr}\nUpdated At: ${dateStr}\n\n`;
     setActive({ path, content, isNew: true });
     setStatus("");
     setPopover(null);
@@ -290,39 +299,55 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     return path.split("/").pop()?.replace(/\.md$/, "") ?? path;
   }
 
-  function getDateFromContent(content: string): string {
-    const match = content.match(/^Date:\s*(\d{2}\/\d{2}\/\d{4})$/m);
+  function getDateFromContent(content: string, type: "created" | "updated" = "updated"): string {
+    const pattern = type === "created" ? /^Created At:\s*(\d{2}\/\d{2}\/\d{4})$/m : /^Updated At:\s*(\d{2}\/\d{2}\/\d{4})$/m;
+    const match = content.match(pattern);
     return match ? match[1] : "";
   }
 
-  function updateDateInContent(content: string, newDate: string): string {
-    const dateMatch = content.match(/^Date:\s*\d{2}\/\d{2}\/\d{4}$/m);
+  function updateDateInContent(content: string, newDate: string, type: "created" | "updated" = "updated"): string {
+    const label = type === "created" ? "Created At" : "Updated At";
+    const pattern = type === "created" ? /^Created At:\s*\d{2}\/\d{2}\/\d{4}$/m : /^Updated At:\s*\d{2}\/\d{2}\/\d{4}$/m;
+    const dateMatch = content.match(pattern);
+
     if (dateMatch) {
       // Replace the entire date line
-      return content.replace(/^Date:\s*\d{2}\/\d{2}\/\d{4}$/m, `Date: ${newDate}`);
+      return content.replace(pattern, `${label}: ${newDate}`);
     }
-    // If no date exists, add it after the title with proper spacing
+
+    // If no date exists, add both dates after the title with proper spacing
     const titleMatch = content.match(/^(# [^\n]+)\n*/);
     if (titleMatch) {
-      return content.replace(/^(# [^\n]+)(\n*)/, `$1\n\nDate: ${newDate}\n\n`);
+      if (type === "created") {
+        // If adding Created At for the first time
+        return content.replace(/^(# [^\n]+)(\n*)/, `$1\n\nCreated At: ${newDate}\nUpdated At: ${newDate}\n\n`);
+      } else {
+        // If adding Updated At, check if Created At exists
+        const createdAtLine = content.match(/^Created At:\s*(\d{2}\/\d{2}\/\d{4})$/m);
+        if (createdAtLine) {
+          // Created At exists, just add Updated At
+          return content.replace(/^(Created At:[^\n]*)\n*/, `$1\nUpdated At: ${newDate}\n\n`);
+        }
+      }
     }
-    // Fallback: prepend date
-    return `Date: ${newDate}\n\n${content}`;
+    // Fallback: prepend dates
+    return `Created At: ${newDate}\nUpdated At: ${newDate}\n\n${content}`;
   }
 
-  function handleDateChange(newDate: string) {
+  function handleUpdatedAtChange(newDate: string) {
     if (active && newDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
       // Only update if it's a valid dd/mm/yyyy format
-      const currentDateInContent = getDateFromContent(active.content);
+      const currentDateInContent = getDateFromContent(active.content, "updated");
       if (newDate !== currentDateInContent) {
-        const updated = updateDateInContent(active.content, newDate);
+        const updated = updateDateInContent(active.content, newDate, "updated");
         setActive({ ...active, content: updated });
       }
     }
   }
 
   const canDelete = active && !active.isNew;
-  const currentDate = active ? getDateFromContent(active.content) : "";
+  const createdAtDate = active ? getDateFromContent(active.content, "created") : "";
+  const updatedAtDate = active ? getDateFromContent(active.content, "updated") : "";
 
   return (
     <div className="flex gap-0 min-h-[calc(100vh-2rem)] border border-gray-200 rounded">
@@ -522,15 +547,21 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
               </div>
             </div>
 
-            <div className="px-4 py-2 border-b border-gray-200 bg-gray-50 flex items-center gap-3">
-              <label className="text-xs text-gray-500 font-semibold">Date:</label>
-              <input
-                type="text"
-                value={currentDate}
-                onChange={e => handleDateChange(e.target.value)}
-                placeholder="dd/mm/yyyy"
-                className="text-sm px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white font-mono"
-              />
+            <div className="px-4 py-2 border-b border-gray-200 bg-gray-50 flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500 font-semibold">Created At:</label>
+                <span className="text-sm px-2 py-1 bg-gray-100 rounded font-mono text-gray-600">{createdAtDate || "—"}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500 font-semibold">Updated At:</label>
+                <input
+                  type="text"
+                  value={updatedAtDate}
+                  onChange={e => handleUpdatedAtChange(e.target.value)}
+                  placeholder="dd/mm/yyyy"
+                  className="text-sm px-2 py-1 border border-gray-200 rounded focus:outline-none focus:border-gray-400 bg-white font-mono"
+                />
+              </div>
             </div>
 
             <div className="flex-1 flex min-h-0">

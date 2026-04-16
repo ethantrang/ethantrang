@@ -1,6 +1,7 @@
 # VNG Corporation
 
-Date: 01/01/2024
+Created At: 01/01/2024
+Updated At: 16/04/2026
 
 Intern of VNG's AI Lab, worked on building an enterprise AI chatbot (RAG-based).
 

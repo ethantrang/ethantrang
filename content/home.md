@@ -1,6 +1,7 @@
 # Ethan Trang
 
-Date: 16/04/2026
+Created At: 16/04/2026
+Updated At: 16/04/2026
 
 20 yrs old. I'm currently working on Inflect Labs.
 

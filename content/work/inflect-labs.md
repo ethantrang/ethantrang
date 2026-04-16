@@ -1,6 +1,7 @@
 # Inflect Labs
 
-Date: 01/04/2025
+Created At: 01/04/2025
+Updated At: 16/04/2026
 
 Inflect Labs is my software company.
 

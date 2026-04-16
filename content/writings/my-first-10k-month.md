@@ -1,6 +1,7 @@
 # My first $10k month
 
-Date: 20/04/2025
+Created At: 20/04/2025
+Updated At: 16/04/2026
 
 Medium [story](https://ethantrangg.medium.com/my-first-10k-month-410e69fb1d83)
 

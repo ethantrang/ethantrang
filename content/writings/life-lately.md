@@ -1,6 +1,7 @@
 # life lately
 
-Date: 29/10/2025
+Created At: 29/10/2025
+Updated At: 16/04/2026
 
 Medium [story](https://medium.com/@ethantrangg/life-lately-bc2e25d04eef)
 
