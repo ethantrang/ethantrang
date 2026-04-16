@@ -249,7 +249,7 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     const path = `content/${section}/${slug}.md`;
     const today = new Date();
     const dateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
-    const content = `# ${slug}\n\nCreated At: ${dateStr}\nUpdated At: ${dateStr}\n\n`;
+    const content = `# ${slug}\n\nTitle: ${slug}\nSlug: ${slug}\nCreated At: ${dateStr}\nUpdated At: ${dateStr}\n\n`;
     setActive({ path, content, isNew: true });
     setStatus("");
     setPopover(null);
