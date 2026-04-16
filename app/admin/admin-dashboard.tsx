@@ -170,13 +170,25 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     if (!active) return;
     setSaving(true);
     setStatus("");
+
+    // Ensure content has a valid date - don't auto-update it
+    let contentToSave = active.content;
+    const currentDateInContent = getDateFromContent(contentToSave);
+
+    // If no date exists, add today's date only for new files
+    if (!currentDateInContent && active.isNew) {
+      const today = new Date();
+      const dateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
+      contentToSave = updateDateInContent(contentToSave, dateStr);
+    }
+
     const res = await fetch("/api/admin/files", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: active.path, content: active.content }),
+      body: JSON.stringify({ path: active.path, content: contentToSave }),
     });
     if (res.ok) {
-      setActive(prev => prev ? { ...prev, isNew: false } : null);
+      setActive(prev => prev ? { ...prev, isNew: false, content: contentToSave } : null);
       setStatus("Saved ✓");
     } else {
       const data = await res.json();
@@ -279,23 +291,33 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
   }
 
   function getDateFromContent(content: string): string {
-    const match = content.match(/^Date:\s*(.+?)$/m);
+    const match = content.match(/^Date:\s*(\d{2}\/\d{2}\/\d{4})$/m);
     return match ? match[1] : "";
   }
 
   function updateDateInContent(content: string, newDate: string): string {
-    const dateMatch = content.match(/^Date:\s*(.+?)$/m);
+    const dateMatch = content.match(/^Date:\s*\d{2}\/\d{2}\/\d{4}$/m);
     if (dateMatch) {
-      return content.replace(/^Date:\s*(.+?)$/m, `Date: ${newDate}`);
+      // Replace the entire date line
+      return content.replace(/^Date:\s*\d{2}\/\d{2}\/\d{4}$/m, `Date: ${newDate}`);
     }
-    // If no date exists, add it after the title
-    return content.replace(/^(# .+\n)/, `$1\nDate: ${newDate}\n`);
+    // If no date exists, add it after the title with proper spacing
+    const titleMatch = content.match(/^(# [^\n]+)\n*/);
+    if (titleMatch) {
+      return content.replace(/^(# [^\n]+)(\n*)/, `$1\n\nDate: ${newDate}\n\n`);
+    }
+    // Fallback: prepend date
+    return `Date: ${newDate}\n\n${content}`;
   }
 
   function handleDateChange(newDate: string) {
-    if (active) {
-      const updated = updateDateInContent(active.content, newDate);
-      setActive({ ...active, content: updated });
+    if (active && newDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+      // Only update if it's a valid dd/mm/yyyy format
+      const currentDateInContent = getDateFromContent(active.content);
+      if (newDate !== currentDateInContent) {
+        const updated = updateDateInContent(active.content, newDate);
+        setActive({ ...active, content: updated });
+      }
     }
   }
 
