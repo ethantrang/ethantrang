@@ -1,5 +1,3 @@
-# VNG Corporation
-
 Title: VNG Corporation
 Slug: vng-corporation
 Created At: 01/01/2024

@@ -1,5 +1,3 @@
-# Relevance AI
-
 Title: Relevance AI
 Slug: relevance-ai
 Created At: 01/07/2024

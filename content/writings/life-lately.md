@@ -1,5 +1,3 @@
-# life lately
-
 Title: life lately
 Slug: life-lately
 Created At: 29/10/2025

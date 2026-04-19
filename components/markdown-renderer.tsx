@@ -2,26 +2,37 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { Components } from "react-markdown";
-
-const components: Components = {
-  p({ children }) {
-    const text = typeof children === "string" ? children : Array.isArray(children) ? children.join("") : "";
-    if (text.startsWith("Created At:") || text.startsWith("Updated At:")) {
-      return <p className="text-muted-foreground mb-2">{children}</p>;
-    }
-    return <p>{children}</p>;
-  },
-};
 
 export function MarkdownRenderer({ content }: { content: string }) {
-  const processedContent = content
-    .split('\n')
-    .filter(line => !line.startsWith('Title:') && !line.startsWith('Slug:'))
-    .join('\n');
+  const lines = content.split('\n');
+
+  let titleLine = '';
+  const dateLines: string[] = [];
+  const bodyLines: string[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith('Title:')) {
+      const value = line.replace(/^Title:\s*/, '').trim();
+      titleLine = value ? `# ${value}` : '';
+    } else if (line.startsWith('Slug:')) {
+      // filtered out
+    } else if (line.startsWith('Created At:') || line.startsWith('Updated At:')) {
+      dateLines.push(line);
+    } else {
+      bodyLines.push(line);
+    }
+  }
+
+  const sections = [
+    titleLine,
+    dateLines.join('\n'),
+    bodyLines.join('\n').replace(/^\n+/, ''),
+  ].filter(Boolean);
+
+  const processedContent = sections.join('\n\n');
 
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+    <ReactMarkdown remarkPlugins={[remarkGfm]}>
       {processedContent}
     </ReactMarkdown>
   );

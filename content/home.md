@@ -1,17 +1,11 @@
-# Ethan Trang
-
 Title: Home
-Slug: home
-Created At: 16/04/2026
-Updated At: 16/04/2026
 
-20 yrs old. I'm currently working on Inflect Labs.
+born and raised in hcmc, vietnam.
 
-I've previously worked software engineering / AI roles, and have built multiple products.
+software engineering and ai background. i'm building inflect labs.
 
-Best place to reach me is my email [ethan.trang5521@gmail.com](mailto:ethan.trang5521@gmail.com).
 
-**Social**
+[Email](mailto:ethan@inflectlabs.co)
 
 [GitHub](https://github.com/ethantrang)
 
@@ -19,6 +13,5 @@ Best place to reach me is my email [ethan.trang5521@gmail.com](mailto:ethan.tran
 
 [X](https://x.com/ethantrangg)
 
-
-
-make your personal site like this: [github](https://github.com/ethantrang/ethantrang)
+Created At: 17/04/2026
+Updated At: 19/04/2026

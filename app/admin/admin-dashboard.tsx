@@ -84,38 +84,46 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
   const [sectionNameEdit, setSectionNameEdit] = useState<string>("");
   const [titleCache, setTitleCache] = useState<{ [path: string]: string }>({});
   const [editingTitle, setEditingTitle] = useState("");
+  const [editingSlug, setEditingSlug] = useState("");
 
   function getTitleFromContent(content: string): string {
-    const pattern = /^#\s+(.+)$/m;
-    const match = content.match(pattern);
-    return match ? match[1] : "";
+    const match = content.match(/^Title:\s*(.+)$/m);
+    return match ? match[1].trim() : "";
+  }
+
+  function getSlugFromContent(content: string): string {
+    const match = content.match(/^Slug:\s*(.+)$/m);
+    return match ? match[1].trim() : "";
   }
 
   function getMarkdownBodyFromContent(content: string): string {
-    // Remove title and metadata lines, keep only the markdown body
     return content
-      .replace(/^#\s+.+\n*/m, "") // Remove title heading
-      .replace(/^Created At:\s*.+\n/m, "") // Remove Created At line
-      .replace(/^Updated At:\s*.+\n/m, "") // Remove Updated At line
-      .replace(/^\n+/, ""); // Remove leading blank lines
+      .replace(/^\s*#\s+[^\n]+\n?/, "")
+      .replace(/^Title:\s*.+\n?/m, "")
+      .replace(/^Slug:\s*.+\n?/m, "")
+      .replace(/^Created At:\s*.+\n?/m, "")
+      .replace(/^Updated At:\s*.+\n?/m, "")
+      .replace(/^\n+/, "")
+      .trimEnd();
   }
 
   function reconstructContent(
     title: string,
+    slug: string,
     createdAt: string,
     updatedAt: string,
     body: string
   ): string {
-    // body includes the heading, so we need to update it with the current title
-    // Replace the heading line with the new title
-    let content = body.replace(/^#\s+.+$/m, `# ${title}`);
+    const metaLines: string[] = [];
+    if (title) metaLines.push(`Title: ${title}`);
+    if (slug) metaLines.push(`Slug: ${slug}`);
 
-    // If no heading was found, prepend one
-    if (content === body && !body.startsWith("#")) {
-      content = `# ${title}\n\n${body}`;
-    }
+    const trimmedBody = body.trim();
+    const result = metaLines.length > 0
+      ? `${metaLines.join("\n")}\n\n${trimmedBody}`
+      : trimmedBody;
 
-    return `${content}\n\nCreated At: ${createdAt}\nUpdated At: ${updatedAt}`;
+    return `${result}\n\nCreated At: ${createdAt}\nUpdated At: ${updatedAt}`;
   }
 
   async function extractDate(content: string, type: "created" | "updated" = "updated"): Promise<Date | null> {
@@ -212,6 +220,7 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
       const content = data.content;
       setActive({ path, content, isNew: false });
       setEditingTitle(getTitleFromContent(content));
+      setEditingSlug(getSlugFromContent(content));
       setStatus("");
       setPopover(null);
     } else {
@@ -241,12 +250,13 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
       updatedAtDate = dateStr;
     }
 
-    // Get the body content (includes heading but not metadata)
+    // Get the body content (without metadata lines)
     const bodyContent = getMarkdownBodyFromContent(active.content);
 
     // Reconstruct content with updated metadata
     const contentToSave = reconstructContent(
       editingTitle,
+      editingSlug,
       createdAtDate,
       updatedAtDate,
       bodyContent
@@ -289,9 +299,10 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
 
   function confirmNewFile(section: string) {
     const path = `content/${section}/new-file.md`;
-    const content = `# \n\nCreated At: \nUpdated At: \n\n`;
+    const content = `Title: \nSlug: \n\n\nCreated At: \nUpdated At: \n\n`;
     setActive({ path, content, isNew: true });
     setEditingTitle("");
+    setEditingSlug("");
     setStatus("");
     setPopover(null);
   }
@@ -410,30 +421,10 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
 
   function updateDateInContent(content: string, newDate: string, type: "created" | "updated" = "updated"): string {
     const label = type === "created" ? "Created At" : "Updated At";
-    const pattern = type === "created" ? /^Created At:\s*\d{2}\/\d{2}\/\d{4}$/m : /^Updated At:\s*\d{2}\/\d{2}\/\d{4}$/m;
-    const dateMatch = content.match(pattern);
-
-    if (dateMatch) {
-      // Replace the entire date line
+    const pattern = new RegExp(`^${label}:.*$`, 'm');
+    if (pattern.test(content)) {
       return content.replace(pattern, `${label}: ${newDate}`);
     }
-
-    // If no date exists, add both dates after the title with proper spacing
-    const titleMatch = content.match(/^(# [^\n]+)\n*/);
-    if (titleMatch) {
-      if (type === "created") {
-        // If adding Created At for the first time
-        return content.replace(/^(# [^\n]+)(\n*)/, `$1\n\nCreated At: ${newDate}\nUpdated At: ${newDate}\n\n`);
-      } else {
-        // If adding Updated At, check if Created At exists
-        const createdAtLine = content.match(/^Created At:\s*(\d{2}\/\d{2}\/\d{4})$/m);
-        if (createdAtLine) {
-          // Created At exists, just add Updated At
-          return content.replace(/^(Created At:[^\n]*)\n*/, `$1\nUpdated At: ${newDate}\n\n`);
-        }
-      }
-    }
-    // Fallback: prepend dates
     return `Created At: ${newDate}\nUpdated At: ${newDate}\n\n${content}`;
   }
 
@@ -461,6 +452,20 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
 
   function handleTitleChange(newTitle: string) {
     setEditingTitle(newTitle);
+    if (!active) return;
+    const createdAt = getDateFromContent(active.content, "created");
+    const updatedAt = getDateFromContent(active.content, "updated");
+    const body = getMarkdownBodyFromContent(active.content);
+    setActive(prev => prev ? { ...prev, content: reconstructContent(newTitle, editingSlug, createdAt, updatedAt, body) } : null);
+  }
+
+  function handleSlugChange(newSlug: string) {
+    setEditingSlug(newSlug);
+    if (!active) return;
+    const createdAt = getDateFromContent(active.content, "created");
+    const updatedAt = getDateFromContent(active.content, "updated");
+    const body = getMarkdownBodyFromContent(active.content);
+    setActive(prev => prev ? { ...prev, content: reconstructContent(editingTitle, newSlug, createdAt, updatedAt, body) } : null);
   }
 
   const canDelete = active && !active.isNew;
@@ -584,7 +589,6 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
                   value={sectionNameEdit}
                   onChange={(e) => setSectionNameEdit(e.target.value)}
                   className="text-sm px-2 py-1 border border-input rounded focus:outline-none focus:border-ring bg-background text-foreground flex-1 max-w-xs"
-                  autoFocus
                 />
               </div>
             </div>
@@ -627,15 +631,27 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
             </div>
 
             <div className="px-4 py-2 border-b border-border bg-card space-y-2">
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-muted-foreground font-semibold">Title:</label>
-                <input
-                  type="text"
-                  value={editingTitle}
-                  onChange={e => handleTitleChange(e.target.value)}
-                  placeholder="Page title"
-                  className="text-sm px-2 py-1 border border-input rounded focus:outline-none focus:border-ring bg-background text-foreground flex-1"
-                />
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 flex-1">
+                  <label className="text-xs text-muted-foreground font-semibold">Title:</label>
+                  <input
+                    type="text"
+                    value={editingTitle}
+                    onChange={e => handleTitleChange(e.target.value)}
+                    placeholder="Page title"
+                    className="text-sm px-2 py-1 border border-input rounded focus:outline-none focus:border-ring bg-background text-foreground flex-1"
+                  />
+                </div>
+                <div className="flex items-center gap-2 flex-1">
+                  <label className="text-xs text-muted-foreground font-semibold">Slug:</label>
+                  <input
+                    type="text"
+                    value={editingSlug}
+                    onChange={e => handleSlugChange(e.target.value)}
+                    placeholder="url-slug"
+                    className="text-sm px-2 py-1 border border-input rounded focus:outline-none focus:border-ring bg-background text-foreground flex-1"
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
@@ -662,7 +678,11 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
             <div className="flex-1 flex min-h-0">
               <textarea
                 value={getMarkdownBodyFromContent(active.content)}
-                onChange={e => setActive(prev => prev ? { ...prev, content: e.target.value } : null)}
+                onChange={e => {
+                  const createdAt = getDateFromContent(active.content, "created");
+                  const updatedAt = getDateFromContent(active.content, "updated");
+                  setActive(prev => prev ? { ...prev, content: reconstructContent(editingTitle, editingSlug, createdAt, updatedAt, e.target.value) } : null);
+                }}
                 className="w-1/2 p-4 font-mono text-sm resize-none focus:outline-none border-r border-border bg-background text-foreground"
                 spellCheck={false}
                 placeholder="Write your markdown here..."
