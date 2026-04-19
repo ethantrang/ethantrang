@@ -25,7 +25,7 @@ export function MarkdownRenderer({ content }: { content: string }) {
 
   const sections = [
     titleLine,
-    dateLines.join('\n'),
+    dateLines.join('\n\n'),
     bodyLines.join('\n').replace(/^\n+/, ''),
   ].filter(Boolean);
 
