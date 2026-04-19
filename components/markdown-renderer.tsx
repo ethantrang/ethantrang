@@ -14,7 +14,7 @@ export function MarkdownRenderer({ content }: { content: string }) {
     if (line.startsWith('Title:')) {
       const value = line.replace(/^Title:\s*/, '').trim();
       titleLine = value ? `# ${value}` : '';
-    } else if (line.startsWith('Slug:')) {
+    } else if (line.startsWith('Slug:') || line.startsWith('Status:')) {
       // filtered out
     } else if (line.startsWith('Created At:') || line.startsWith('Updated At:')) {
       dateLines.push(line);
@@ -25,7 +25,8 @@ export function MarkdownRenderer({ content }: { content: string }) {
 
   const sections = [
     titleLine,
-    dateLines.join('\n\n'),
+    dateLines.length > 0 ? dateLines.join('  ') : null,
+    dateLines.length > 0 ? '&nbsp;' : null,
     bodyLines.join('\n').replace(/^\n+/, ''),
   ].filter(Boolean);
 

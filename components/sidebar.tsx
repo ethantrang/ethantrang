@@ -6,11 +6,19 @@ import { usePathname } from "next/navigation";
 type SectionItem = { name: string; slug: string };
 type Section = { name: string; items: SectionItem[] };
 
-export function Sidebar({ sections, showBorder = false }: { sections: Section[]; showBorder?: boolean }) {
+export function Sidebar({ sections, showBorder = false, onClose }: { sections: Section[]; showBorder?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <aside className={`w-48 md:w-64 flex-shrink-0 p-4 space-y-4 ${showBorder ? 'border-r border-border' : ''}`}>
+    <aside className={`w-full md:w-64 flex-shrink-0 p-4 space-y-4 ${showBorder ? 'border-r border-border' : ''}`}>
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="text-sm hover:underline block mb-2"
+        >
+          ← collapse
+        </button>
+      )}
       {sections.map(section => (
         <div key={section.name || "root"}>
           {section.name && <p className="text-sm mb-1">{section.name}</p>}

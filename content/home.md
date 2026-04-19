@@ -1,8 +1,8 @@
-Title: Home
+Title: Ethan Trang
 
-born and raised in hcmc, vietnam.
+born and raised in hcmc, vietnam. now living in sydney, australia.
 
-software engineering and ai background. i'm building inflect labs.
+i'm building inflect labs, a dev agency based in sydney.
 
 
 [Email](mailto:ethan@inflectlabs.co)
@@ -11,7 +11,7 @@ software engineering and ai background. i'm building inflect labs.
 
 [LinkedIn](https://www.linkedin.com/in/ethan-trang/)
 
-[X](https://x.com/ethantrangg)
+[X (Twitter)](https://x.com/ethantrangg)
 
 Created At: 17/04/2026
 Updated At: 19/04/2026

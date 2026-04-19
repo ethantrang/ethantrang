@@ -11,7 +11,12 @@ export async function generateStaticParams() {
     const abs = join(contentDir, entry);
     if (statSync(abs).isDirectory()) {
       for (const file of readdirSync(abs).filter(f => f.endsWith(".md"))) {
-        params.push({ section: entry, slug: file.replace(/\.md$/, "") });
+        const content = readFileSync(join(abs, file), "utf-8");
+        const statusMatch = content.match(/^Status:\s*(.+)$/m);
+        const status = statusMatch?.[1].trim().toLowerCase();
+        if (!status || status === "public") {
+          params.push({ section: entry, slug: file.replace(/\.md$/, "") });
+        }
       }
     }
   }
@@ -33,6 +38,10 @@ export default async function ContentPage({
   } catch {
     notFound();
   }
+
+  const statusMatch = content.match(/^Status:\s*(.+)$/m);
+  const status = statusMatch?.[1].trim().toLowerCase();
+  if (status && status !== "public") notFound();
 
   return <MarkdownRenderer content={content} />;
 }

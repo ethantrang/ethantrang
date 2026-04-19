@@ -1,9 +1,6 @@
 Title: My first $10k month
 Slug: my-first-10k-month
-Created At: 20/04/2025
-Updated At: 16/04/2026
-
-Medium [story](https://ethantrangg.medium.com/my-first-10k-month-410e69fb1d83)
+Status: public
 
 I made first recurring A$10k month. For a while, this was a milestone.
 
@@ -72,3 +69,7 @@ Hitting a certain number won't derive me happiness, but instead going towards th
 That might be what really matters.
 
 — Ethan
+
+
+Created At: 20/04/2025
+Updated At: 20/04/2026

@@ -1,9 +1,6 @@
 Title: How to get what you want
 Slug: how-to-get-what-you-want
-Created At: 04/06/2025
-Updated At: 16/04/2026
-
-Medium [story](https://medium.com/@ethantrangg/how-to-get-what-you-want-5dbae97e44ba)
+Status: public
 
 (disclaimer: in my own experience)
 
@@ -36,3 +33,7 @@ Got one-on-one coffee chats from high-performing people CEOs, founders, seniors)
 Getting what you want isn't manipulative or unethical.
 
 I like to think it's an art to predictable create good opportunities for yourself, instead of relying on luck.
+
+
+Created At: 04/06/2025
+Updated At: 20/04/2026

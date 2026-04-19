@@ -1,9 +1,6 @@
 Title: So I'm starting over
 Slug: so-im-starting-over
-Created At: 24/01/2025
-Updated At: 16/04/2026
-
-Medium [story](https://ethantrangg.medium.com/so-im-starting-over-1873e4956631)
+Status: public
 
 Reflections and motions after a year of entrepreneurship.
 
@@ -38,3 +35,7 @@ I'm trying to unlearn how a successful life should be lived. Can I be rich and h
 Conclusion
 
 I have nothing to show for yet but I'm building it. Quite frankly right now I don't even know what that is. But I think about the end of history illusion a lot: we usually know we've changed a lot in the past but think things will be the same in the future. Trusting that this year will be that of growth if I'm intentional with it consistently. See you on the other side. And thanks for reading.
+
+
+Created At: 24/01/2025
+Updated At: 20/04/2026

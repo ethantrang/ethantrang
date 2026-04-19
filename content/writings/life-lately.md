@@ -1,9 +1,6 @@
-Title: life lately
+Title: my first 6 figures
 Slug: life-lately
-Created At: 29/10/2025
-Updated At: 16/04/2026
-
-Medium [story](https://medium.com/@ethantrangg/life-lately-bc2e25d04eef)
+Status: public
 
 i made my first 6 figures online last week
 
@@ -46,3 +43,7 @@ but a year from now i won't be the same either
 i didn't know when i changed
 
 or i'm still the same but decorated with different achievements.
+
+
+Created At: 29/10/2025
+Updated At: 20/04/2026

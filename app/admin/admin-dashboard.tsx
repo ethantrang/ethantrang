@@ -83,8 +83,23 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
   const [popover, setPopover] = useState<Popover | null>(null);
   const [sectionNameEdit, setSectionNameEdit] = useState<string>("");
   const [titleCache, setTitleCache] = useState<{ [path: string]: string }>({});
+  const [statusCache, setStatusCache] = useState<{ [path: string]: string }>({});
   const [editingTitle, setEditingTitle] = useState("");
   const [editingSlug, setEditingSlug] = useState("");
+  const [editingStatus, setEditingStatus] = useState<"public" | "draft" | "private">("draft");
+  const [isDirty, setIsDirty] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Refs that always hold current values — used by handleSave to avoid stale closures
+  const activeRef = useRef<ActiveFile | null>(null);
+  const editingTitleRef = useRef("");
+  const editingSlugRef = useRef("");
+  const editingStatusRef = useRef<"public" | "draft" | "private">("draft");
+  activeRef.current = active;
+  editingTitleRef.current = editingTitle;
+  editingSlugRef.current = editingSlug;
+  editingStatusRef.current = editingStatus;
 
   function getTitleFromContent(content: string): string {
     const match = content.match(/^Title:\s*(.+)$/m);
@@ -96,20 +111,30 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     return match ? match[1].trim() : "";
   }
 
+  function getStatusFromContent(content: string): "public" | "draft" | "private" {
+    const match = content.match(/^Status:\s*(.+)$/m);
+    const val = match?.[1].trim().toLowerCase();
+    if (val === "draft" || val === "private") return val;
+    return "public";
+  }
+
   function getMarkdownBodyFromContent(content: string): string {
     return content
       .replace(/^\s*#\s+[^\n]+\n?/, "")
-      .replace(/^Title:\s*.+\n?/m, "")
-      .replace(/^Slug:\s*.+\n?/m, "")
-      .replace(/^Created At:\s*.+\n?/m, "")
-      .replace(/^Updated At:\s*.+\n?/m, "")
-      .replace(/^\n+/, "")
-      .trimEnd();
+      .replace(/^Title:\s*[^\n]*\n?/m, "")
+      .replace(/^Slug:\s*[^\n]*\n?/m, "")
+      .replace(/^Status:\s*[^\n]*\n?/m, "")
+      .replace(/\n\nCreated At:[^\n]*/g, "")
+      .replace(/\nUpdated At:[^\n]*/g, "")
+      .replace(/^Created At:[^\n]*\n?/m, "")
+      .replace(/^Updated At:[^\n]*\n?/m, "")
+      .replace(/^\n+/, "");
   }
 
   function reconstructContent(
     title: string,
     slug: string,
+    status: string,
     createdAt: string,
     updatedAt: string,
     body: string
@@ -117,8 +142,9 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     const metaLines: string[] = [];
     if (title) metaLines.push(`Title: ${title}`);
     if (slug) metaLines.push(`Slug: ${slug}`);
+    metaLines.push(`Status: ${status || "draft"}`);
 
-    const trimmedBody = body.trim();
+    const trimmedBody = body.replace(/^\n+/, '');
     const result = metaLines.length > 0
       ? `${metaLines.join("\n")}\n\n${trimmedBody}`
       : trimmedBody;
@@ -144,13 +170,15 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
       .filter(i => i.type === "file" && i.name.endsWith(".md"))
       .map(i => `content/${i.name}`);
 
-    // Extract titles for root files
+    // Extract titles and statuses for root files
     const newTitleCache: { [path: string]: string } = { ...titleCache };
+    const newStatusCache: { [path: string]: string } = { ...statusCache };
     for (const path of rootFiles) {
       const fileRes = await fetch(`/api/admin/files?path=${encodeURIComponent(path)}`);
       const fileData = fileRes.ok ? await fileRes.json() : { content: "" };
       const title = getTitleFromContent(fileData.content || "");
       if (title) newTitleCache[path] = title;
+      newStatusCache[path] = getStatusFromContent(fileData.content || "");
     }
 
     const sections = await Promise.all(
@@ -169,6 +197,7 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
               const updatedDate = await extractDate(fileData.content || "", "updated");
               const title = getTitleFromContent(fileData.content || "");
               if (title) newTitleCache[path] = title;
+              newStatusCache[path] = getStatusFromContent(fileData.content || "");
               return { path, date: updatedDate };
             })
           ).then(filesWithDates =>
@@ -192,16 +221,21 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     );
 
     setTitleCache(newTitleCache);
+    setStatusCache(newStatusCache);
     setFileTree({ rootFiles, sections });
   }
 
   useEffect(() => { loadTree(); }, []);
 
+  // Default open on desktop, closed on mobile
+  useEffect(() => {
+    setSidebarOpen(window.innerWidth >= 768);
+  }, []);
+
   // Warn about unsaved changes when leaving the page
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Check if there are unsaved changes
-      if (active && active.isNew) {
+      if (isDirty) {
         e.preventDefault();
         e.returnValue = "";
         return "";
@@ -210,9 +244,10 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [active]);
+  }, [isDirty]);
 
   const loadFile = useCallback(async (path: string) => {
+    if (autoSaveTimerRef.current) { clearTimeout(autoSaveTimerRef.current); autoSaveTimerRef.current = null; }
     setStatus("Loading…");
     const res = await fetch(`/api/admin/files?path=${encodeURIComponent(path)}`);
     const data = await res.json();
@@ -221,6 +256,8 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
       setActive({ path, content, isNew: false });
       setEditingTitle(getTitleFromContent(content));
       setEditingSlug(getSlugFromContent(content));
+      setEditingStatus(getStatusFromContent(content));
+      setIsDirty(false);
       setStatus("");
       setPopover(null);
     } else {
@@ -231,44 +268,41 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
   useEffect(() => { if (initialPath) loadFile(initialPath); }, [initialPath, loadFile]);
 
   async function handleSave() {
-    if (!active) return;
+    // active.content is already kept in sync with all editing fields
+    // (title, slug, status, body) — we only need to update the date
+    const currentActive = activeRef.current;
+    if (!currentActive) return;
+    console.log("[handleSave] path:", currentActive.path, "content preview:", currentActive.content.slice(0, 200));
     setSaving(true);
     setStatus("");
 
     const today = new Date();
     const dateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
 
-    let createdAtDate = getDateFromContent(active.content, "created");
-    let updatedAtDate = getDateFromContent(active.content, "updated");
+    let contentToSave = currentActive.content;
 
-    // For new files, set both Created At and Updated At
-    if (active.isNew) {
-      if (!createdAtDate) createdAtDate = dateStr;
-      if (!updatedAtDate) updatedAtDate = dateStr;
+    if (currentActive.isNew) {
+      if (!getDateFromContent(contentToSave, "created")) {
+        contentToSave = updateDateInContent(contentToSave, dateStr, "created");
+      }
+      if (!getDateFromContent(contentToSave, "updated")) {
+        contentToSave = updateDateInContent(contentToSave, dateStr, "updated");
+      }
     } else {
-      // For existing files, always update the Updated At date to today
-      updatedAtDate = dateStr;
+      contentToSave = updateDateInContent(contentToSave, dateStr, "updated");
     }
-
-    // Get the body content (without metadata lines)
-    const bodyContent = getMarkdownBodyFromContent(active.content);
-
-    // Reconstruct content with updated metadata
-    const contentToSave = reconstructContent(
-      editingTitle,
-      editingSlug,
-      createdAtDate,
-      updatedAtDate,
-      bodyContent
-    );
 
     const res = await fetch("/api/admin/files", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: active.path, content: contentToSave }),
+      body: JSON.stringify({ path: currentActive.path, content: contentToSave }),
     });
     if (res.ok) {
+      if (autoSaveTimerRef.current) { clearTimeout(autoSaveTimerRef.current); autoSaveTimerRef.current = null; }
       setActive(prev => prev ? { ...prev, isNew: false, content: contentToSave } : null);
+      setTitleCache(prev => ({ ...prev, [currentActive.path]: editingTitleRef.current }));
+      setStatusCache(prev => ({ ...prev, [currentActive.path]: editingStatusRef.current }));
+      setIsDirty(false);
       setStatus("Saved ✓");
     } else {
       const data = await res.json();
@@ -299,10 +333,11 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
 
   function confirmNewFile(section: string) {
     const path = `content/${section}/new-file.md`;
-    const content = `Title: \nSlug: \n\n\nCreated At: \nUpdated At: \n\n`;
+    const content = `Title: \nSlug: \nStatus: draft\n\n\nCreated At: \nUpdated At: \n\n`;
     setActive({ path, content, isNew: true });
     setEditingTitle("");
     setEditingSlug("");
+    setEditingStatus("draft");
     setStatus("");
     setPopover(null);
   }
@@ -435,6 +470,7 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
       if (markdownDate !== currentDateInContent) {
         const updated = updateDateInContent(active.content, markdownDate, "created");
         setActive({ ...active, content: updated });
+        scheduleAutoSave();
       }
     }
   }
@@ -446,8 +482,16 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
       if (markdownDate !== currentDateInContent) {
         const updated = updateDateInContent(active.content, markdownDate, "updated");
         setActive({ ...active, content: updated });
+        scheduleAutoSave();
       }
     }
+  }
+
+  function scheduleAutoSave() {
+    setIsDirty(true);
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    if (!activeRef.current || activeRef.current.isNew) return;
+    autoSaveTimerRef.current = setTimeout(handleSave, 1500);
   }
 
   function handleTitleChange(newTitle: string) {
@@ -456,7 +500,9 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     const createdAt = getDateFromContent(active.content, "created");
     const updatedAt = getDateFromContent(active.content, "updated");
     const body = getMarkdownBodyFromContent(active.content);
-    setActive(prev => prev ? { ...prev, content: reconstructContent(newTitle, editingSlug, createdAt, updatedAt, body) } : null);
+    const newContent = reconstructContent(newTitle, editingSlug, editingStatus, createdAt, updatedAt, body);
+    setActive(prev => prev ? { ...prev, content: newContent } : null);
+    scheduleAutoSave();
   }
 
   function handleSlugChange(newSlug: string) {
@@ -465,7 +511,18 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
     const createdAt = getDateFromContent(active.content, "created");
     const updatedAt = getDateFromContent(active.content, "updated");
     const body = getMarkdownBodyFromContent(active.content);
-    setActive(prev => prev ? { ...prev, content: reconstructContent(editingTitle, newSlug, createdAt, updatedAt, body) } : null);
+    setActive(prev => prev ? { ...prev, content: reconstructContent(editingTitle, newSlug, editingStatus, createdAt, updatedAt, body) } : null);
+    scheduleAutoSave();
+  }
+
+  function handleStatusChange(newStatus: "public" | "draft" | "private") {
+    setEditingStatus(newStatus);
+    if (!active) return;
+    const createdAt = getDateFromContent(active.content, "created");
+    const updatedAt = getDateFromContent(active.content, "updated");
+    const body = getMarkdownBodyFromContent(active.content);
+    setActive(prev => prev ? { ...prev, content: reconstructContent(editingTitle, editingSlug, newStatus, createdAt, updatedAt, body) } : null);
+    scheduleAutoSave();
   }
 
   const canDelete = active && !active.isNew;
@@ -473,19 +530,30 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
   const updatedAtDate = active ? getDateFromContent(active.content, "updated") : "";
 
   return (
-    <div className="flex gap-0 min-h-[calc(100vh-2rem)] border border-border rounded">
+    <div className="flex gap-0 min-h-[calc(100vh-2rem)] border border-border rounded md:max-w-[75vw] mx-auto w-full">
       {/* Sidebar */}
-      <aside className="w-48 md:w-64 flex-shrink-0 p-4 space-y-4 overflow-y-auto">
+      <div className={sidebarOpen ? "contents" : "hidden"}>
+      <aside className="w-full md:w-64 flex-shrink-0 p-4 space-y-4 overflow-y-auto">
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="text-sm hover:underline block mb-2"
+        >
+          ← collapse
+        </button>
         {/* Root files (home.md etc) */}
         {fileTree.rootFiles.map(path => {
           const isActive = active?.path === path;
+          const fileStatus = statusCache[path] ?? "public";
           return (
             <button
               key={path}
               onClick={() => loadFile(path)}
-              className={`text-sm block ${isActive ? "underline" : "hover:underline"}`}
+              className={`text-sm block text-left ${isActive ? "underline" : "hover:underline"}`}
             >
               {displayName(path)}
+              {fileStatus !== "public" && (
+                <span className="ml-1 text-xs text-muted-foreground">({fileStatus})</span>
+              )}
             </button>
           );
         })}
@@ -506,13 +574,17 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
             <div className="space-y-1 pl-2">
               {section.files.map(path => {
                 const isActive = active?.path === path;
+                const fileStatus = statusCache[path] ?? "public";
                 return (
                   <button
                     key={path}
                     onClick={() => loadFile(path)}
-                    className={`text-sm block ${isActive ? "underline" : "hover:underline"}`}
+                    className={`text-sm block text-left ${isActive ? "underline" : "hover:underline"}`}
                   >
                     {displayName(path)}
+                    {fileStatus !== "public" && (
+                      <span className="ml-1 text-xs text-muted-foreground">({fileStatus})</span>
+                    )}
                   </button>
                 );
               })}
@@ -546,9 +618,18 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
       </aside>
 
       <ResizableDivider />
+      </div>
 
       {/* Main panel */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className={`flex-1 flex flex-col min-w-0 ${sidebarOpen ? "hidden md:flex" : "flex"}`}>
+        {!sidebarOpen && (
+          <button
+            className="text-sm hover:underline p-4 pb-0 block"
+            onClick={() => setSidebarOpen(true)}
+          >
+            ≡ menu
+          </button>
+        )}
         {activeSection ? (
           <>
             <div className="px-4 py-2 border-b border-border flex items-center justify-between">
@@ -601,7 +682,9 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
             <div className="px-4 py-2 border-b border-border flex items-center justify-between">
               <span className="text-xs text-muted-foreground">{active.path}</span>
               <div className="flex items-center gap-3">
-                {status && <span className="text-xs text-muted-foreground">{status}</span>}
+                {status
+                  ? <span className="text-xs text-muted-foreground">{status}</span>
+                  : isDirty && <span className="text-xs text-muted-foreground">unsaved</span>}
                 <button
                   onClick={handleSave}
                   disabled={saving}
@@ -672,6 +755,18 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
                     className="text-sm px-2 py-1 border border-input rounded focus:outline-none focus:border-ring bg-background text-foreground"
                   />
                 </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-muted-foreground font-semibold">Status:</label>
+                  <select
+                    value={editingStatus}
+                    onChange={e => handleStatusChange(e.target.value as "public" | "draft" | "private")}
+                    className="text-sm px-2 py-1 border border-input rounded focus:outline-none focus:border-ring bg-background text-foreground"
+                  >
+                    <option value="public">public</option>
+                    <option value="draft">draft</option>
+                    <option value="private">private</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -681,7 +776,8 @@ export function AdminDashboard({ initialPath }: { initialPath?: string }) {
                 onChange={e => {
                   const createdAt = getDateFromContent(active.content, "created");
                   const updatedAt = getDateFromContent(active.content, "updated");
-                  setActive(prev => prev ? { ...prev, content: reconstructContent(editingTitle, editingSlug, createdAt, updatedAt, e.target.value) } : null);
+                  setActive(prev => prev ? { ...prev, content: reconstructContent(editingTitle, editingSlug, editingStatus, createdAt, updatedAt, e.target.value) } : null);
+                  scheduleAutoSave();
                 }}
                 className="w-1/2 p-4 font-mono text-sm resize-none focus:outline-none border-r border-border bg-background text-foreground"
                 spellCheck={false}
